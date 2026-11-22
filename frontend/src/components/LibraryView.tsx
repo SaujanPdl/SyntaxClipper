@@ -14,7 +14,8 @@ import {
   XCircle,
   AlertCircle,
   FolderOpen,
-  Share2
+  Share2,
+  Sparkles
 } from 'lucide-react';
 import {
   getCreators,
@@ -26,6 +27,7 @@ import {
   updateGame,
   deleteGame,
   toggleRoundRobin,
+  loadStarterPresets,
   getConfig
 } from '@/lib/api';
 
@@ -95,6 +97,18 @@ export default function LibraryView() {
     setCreatorDestinationMode('woopsocial');
     setCreatorMaxClips(2);
     setShowCreatorModal(true);
+  };
+
+  const handleLoadStarterPresets = async () => {
+    try {
+      setLoading(true);
+      await loadStarterPresets();
+      await loadAll();
+    } catch (e: any) {
+      alert(`Failed to load presets: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenEditCreator = (c: any) => {
@@ -304,13 +318,23 @@ export default function LibraryView() {
             <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-400">
               Active Streamers Pool
             </span>
-            <button
-              onClick={handleOpenAddCreator}
-              className="py-1.5 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold flex items-center space-x-1.5 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Creator</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleLoadStarterPresets}
+                className="py-1.5 px-3 rounded-lg bg-[#191D26] hover:bg-[#1E232F] border border-[#2B3142] text-slate-300 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-colors"
+                title="Load top creators (IShowSpeed, Kai Cenat, CaseOh, BeastBoyShub)"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Load Starter Presets</span>
+              </button>
+              <button
+                onClick={handleOpenAddCreator}
+                className="py-1.5 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold flex items-center space-x-1.5 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Creator</span>
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -356,7 +380,7 @@ export default function LibraryView() {
                               : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                           }`}
                         >
-                          {mode === 'split' ? 'Facecam Split (42/58)' : mode === 'fullscreen' ? 'No-Facecam 9:16' : 'Auto-Detect'}
+                          {mode === 'split' ? 'Webcam + Gameplay Split' : mode === 'fullscreen' ? 'Full-Screen Gameplay' : 'Auto-Detect Webcam'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -514,9 +538,9 @@ export default function LibraryView() {
                   onChange={(e) => setCreatorFacecamMode(e.target.value)}
                   className="w-full mt-1 px-3 py-1.5 bg-[#0B0D11] border border-[#242936] rounded text-slate-200 font-mono focus:border-emerald-500 focus:outline-none"
                 >
-                  <option value="auto">Auto-Detect (Use Split if Webcam Detected)</option>
-                  <option value="split">Facecam Split (42% Top Webcam / 58% Bottom Gameplay)</option>
-                  <option value="fullscreen">No-Facecam (Full-Screen 9:16 Center-Crop)</option>
+                  <option value="split">Webcam + Gameplay Split (42% Top Webcam / 58% Bottom Gameplay)</option>
+                  <option value="fullscreen">Full-Screen Gameplay (No Webcam - 9:16 Center Crop)</option>
+                  <option value="auto">Auto-Detect Webcam (Uses Split if Webcam Detected, Full-Screen otherwise)</option>
                 </select>
               </div>
 

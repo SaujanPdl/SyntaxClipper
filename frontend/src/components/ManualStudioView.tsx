@@ -34,6 +34,7 @@ import {
   getConfig,
   getAutopilotQuotas
 } from '@/lib/api';
+import HelpTooltip from '@/components/HelpTooltip';
 
 interface HighlightMoment {
   start_sec: number;
@@ -517,27 +518,13 @@ export default function ManualStudioView() {
 
               {/* 3-Way Layout Selector */}
               <div className="space-y-2">
-                <label className="block text-xs font-mono font-medium text-slate-300 uppercase tracking-wider">
-                  Layout Framing Mode
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => setLayoutMode('fullscreen')}
-                    className={`p-3 rounded-lg border text-left transition-colors ${
-                      layoutMode === 'fullscreen'
-                        ? 'bg-emerald-500/15 border-emerald-500 text-white'
-                        : 'bg-[#191D26] border-[#242936] text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Maximize className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-xs font-semibold">No-Facecam</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      Center 9:16 crop. Card at y=150, subs at y=1380.
-                    </div>
-                  </button>
-
+                <div className="flex items-center space-x-1.5">
+                  <label className="text-xs font-mono font-medium text-slate-300 uppercase tracking-wider">
+                    Layout Framing Mode
+                  </label>
+                  <HelpTooltip text="Choose how the stream is formatted into vertical 9:16: with webcam on top, full gameplay, or AI auto-detection." />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <button
                     onClick={() => setLayoutMode('split')}
                     className={`p-3 rounded-lg border text-left transition-colors ${
@@ -548,10 +535,27 @@ export default function ManualStudioView() {
                   >
                     <div className="flex items-center space-x-2 mb-1">
                       <Split className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-xs font-semibold">Split 42/58</span>
+                      <span className="text-xs font-semibold">Webcam + Gameplay Split</span>
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      Webcam top (42%), gameplay bottom (58%).
+                      Webcam top (42%), gameplay bottom (58%). Classic viral format.
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setLayoutMode('fullscreen')}
+                    className={`p-3 rounded-lg border text-left transition-colors ${
+                      layoutMode === 'fullscreen'
+                        ? 'bg-emerald-500/15 border-emerald-500 text-white'
+                        : 'bg-[#191D26] border-[#242936] text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Maximize className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-xs font-semibold">Full-Screen Gameplay (No Webcam)</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      Full 9:16 center crop. Best for VTubers or streams without facecam.
                     </div>
                   </button>
 
@@ -565,10 +569,10 @@ export default function ManualStudioView() {
                   >
                     <div className="flex items-center space-x-2 mb-1">
                       <Crosshair className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-xs font-semibold">Auto-Detect</span>
+                      <span className="text-xs font-semibold">Auto-Detect Webcam</span>
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      OpenCV static corner check. Falls back to 9:16.
+                      Scans corners for facecam; automatically switches to split or fullscreen.
                     </div>
                   </button>
                 </div>

@@ -32,7 +32,9 @@ import AutopilotAnalyticsView from '@/components/AutopilotAnalyticsView';
 import UserGuideView from '@/components/UserGuideView';
 import SetupWizardModal from '@/components/SetupWizardModal';
 import UpdateModal from '@/components/UpdateModal';
-import { getConfig, getAutopilotStatus, getAnalyticsOverview, checkUpdate } from '@/lib/api';
+import QuickStartCard from '@/components/QuickStartCard';
+import HelpTooltip from '@/components/HelpTooltip';
+import { getConfig, getAutopilotStatus, getAnalyticsOverview, checkUpdate, getCreators } from '@/lib/api';
 
 type TabType = 'manual' | 'studio' | 'exports' | 'library' | 'queue' | 'autopilot' | 'guide';
 
@@ -42,6 +44,7 @@ export default function Home() {
   const [config, setConfig] = useState<any>(null);
   const [autopilotStatus, setAutopilotStatus] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [creators, setCreators] = useState<any[]>([]);
   const [updateInfo, setUpdateInfo] = useState<any>(null);
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
@@ -71,14 +74,16 @@ export default function Home() {
 
   const checkFirstRun = async () => {
     try {
-      const [cfg, auto, an] = await Promise.all([
+      const [cfg, auto, an, crs] = await Promise.all([
         getConfig(),
         getAutopilotStatus(),
         getAnalyticsOverview(),
+        getCreators().catch(() => ({ creators: [] })),
       ]);
       setConfig(cfg);
       setAutopilotStatus(auto);
       setAnalytics(an);
+      setCreators(crs?.creators || []);
 
       // Check for GitHub updates silently
       handleCheckUpdates(false);
@@ -96,9 +101,14 @@ export default function Home() {
 
   const refreshHeaderStats = async () => {
     try {
-      const [auto, an] = await Promise.all([getAutopilotStatus(), getAnalyticsOverview()]);
+      const [auto, an, crs] = await Promise.all([
+        getAutopilotStatus(),
+        getAnalyticsOverview(),
+        getCreators().catch(() => ({ creators: [] })),
+      ]);
       setAutopilotStatus(auto);
       setAnalytics(an);
+      if (crs?.creators) setCreators(crs.creators);
     } catch (e) {
       console.error(e);
     }
@@ -131,7 +141,7 @@ export default function Home() {
                   SyntaxClipper
                 </span>
                 <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  v1.1
+                  v1.2.0
                 </span>
               </div>
               <div className="mt-1">
@@ -287,13 +297,13 @@ export default function Home() {
                 <span className="text-[10px] font-bold text-emerald-400">New!</span>
               </span>
             ) : (
-              <span className="text-[10px] text-slate-600">v1.1</span>
+              <span className="text-[10px] text-slate-600">v1.2.0</span>
             )}
           </button>
 
           {/* Version & Badge Footer */}
           <div className="px-1 pt-0.5 flex items-center justify-between text-[10px] font-mono text-slate-500">
-            <span>v1.1 • Syntax Nepal</span>
+            <span>v1.2.0 • Syntax Nepal</span>
             <span className="flex items-center space-x-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-emerald-400">Ready</span>
@@ -332,6 +342,7 @@ export default function Home() {
               <span className="text-emerald-400 font-bold">
                 {quotas.youtube_today}/{quotas.youtube_max || 10}
               </span>
+              <HelpTooltip text="Prevents spamming social algorithms by spacing out and capping posts per platform each day." />
             </div>
 
             {/* TikTok Quota */}
@@ -340,6 +351,7 @@ export default function Home() {
               <span className="text-blue-400 font-bold">
                 {quotas.tiktok_today}/{quotas.tiktok_max || 10}
               </span>
+              <HelpTooltip text="Prevents spamming social algorithms by spacing out and capping posts per platform each day." />
             </div>
 
             {/* Storage Preserved */}
@@ -370,6 +382,7 @@ export default function Home() {
                     ? 'Autopilot Active (Eco)'
                     : 'Eco Mode (Active)')}
               </span>
+              <HelpTooltip text="Eco mode limits CPU usage during work or gaming; Turbo uses all available CPU/GPU cores for fastest renders." />
             </div>
           </div>
         </header>
@@ -397,6 +410,18 @@ export default function Home() {
 
         {/* View Container */}
         <main className={`flex-1 overflow-y-auto ${activeTab === 'manual' || activeTab === 'exports' ? 'p-0 flex flex-col' : 'p-6'}`}>
+          {/* Interactive 3-Step Quick Start Guide Card */}
+          <div className={activeTab === 'manual' || activeTab === 'exports' ? 'p-6 pb-0' : ''}>
+            <QuickStartCard
+              config={config}
+              autopilotStatus={autopilotStatus}
+              analytics={analytics}
+              creators={creators}
+              onOpenWizard={() => setShowWizard(true)}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onRefreshData={checkFirstRun}
+            />
+          </div>
           {/* First Run Action Banner */}
           {(!(config?.woopsocial_api_key || config?.zernio_api_key || config?.youtube_oauth_configured || config?.publishing_mode === 'local_only') || !config?.first_run_completed) && (
             <div className="m-6 p-4 rounded-xl bg-amber-950/30 border border-amber-800/40 flex items-center justify-between text-xs font-mono text-amber-300">

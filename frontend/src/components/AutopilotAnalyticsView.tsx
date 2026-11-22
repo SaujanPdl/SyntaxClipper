@@ -37,6 +37,7 @@ import {
   getConfig,
   updateConfig
 } from '@/lib/api';
+import HelpTooltip from '@/components/HelpTooltip';
 
 export default function AutopilotAnalyticsView() {
   const [autopilot, setAutopilot] = useState<any>(null);
@@ -209,10 +210,11 @@ export default function AutopilotAnalyticsView() {
       {/* Autopilot Control Banner */}
       <div className="bg-[#12151C] border border-[#242936] rounded-xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5">
             <h2 className="text-base font-semibold text-white tracking-tight">
               Silent Background Autopilot & Performance Watchdog
             </h2>
+            <HelpTooltip text="Checks your favorite streamers 24/7, detects hype moments with AI, and renders ready-to-post clips in the background." />
             {getStatusBadge()}
           </div>
           <p className="text-xs text-slate-400">
@@ -261,10 +263,14 @@ export default function AutopilotAnalyticsView() {
             <h3 className="text-sm font-semibold text-white">
               4-Layer Universal Game Detector & 3-Tier Performance Telemetry
             </h3>
+            <HelpTooltip text="Automatically pauses video rendering when you launch a PC game so your FPS never drops." />
           </div>
-          <span className="text-[11px] font-mono text-slate-400">
-            Hardware: <strong className="text-emerald-400">NVIDIA RTX 4050 (NVENC Enabled)</strong>
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-mono text-slate-400">
+              Hardware: <strong className="text-emerald-400">NVIDIA RTX 4050 (NVENC Enabled)</strong>
+            </span>
+            <HelpTooltip text="Eco mode limits CPU usage during work or gaming; Turbo uses all available CPU/GPU cores for fastest renders." />
+          </div>
         </div>
 
         {/* 3-Tier Mode Indicators */}
@@ -450,18 +456,25 @@ export default function AutopilotAnalyticsView() {
       </div>
 
       {/* Quotas & Platform Limits */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* YouTube Quota */}
-        <div className="bg-[#12151C] border border-[#242936] rounded-xl p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-mono">
-            <span>YouTube Quota (24h)</span>
-            <Clock className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-2xl font-bold font-mono text-emerald-400">
-            {quotas.youtube_today} / {quotas.youtube_max}
-          </div>
-          <p className="text-[10px] text-slate-500">Up to 10-100/day (Direct API / Zernio)</p>
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-400">
+            Platform Daily Limits & Scheduling Safeguards
+          </span>
+          <HelpTooltip text="Prevents spamming social algorithms by spacing out and capping posts per platform each day." />
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* YouTube Quota */}
+          <div className="bg-[#12151C] border border-[#242936] rounded-xl p-4 space-y-1">
+            <div className="flex items-center justify-between text-slate-400 text-xs font-mono">
+              <span>YouTube Quota (24h)</span>
+              <Clock className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="text-2xl font-bold font-mono text-emerald-400">
+              {quotas.youtube_today} / {quotas.youtube_max}
+            </div>
+            <p className="text-[10px] text-slate-500">Up to 10-100/day (Direct API / Zernio)</p>
+          </div>
 
         {/* TikTok Quota */}
         <div className="bg-[#12151C] border border-[#242936] rounded-xl p-4 space-y-1">
@@ -498,6 +511,7 @@ export default function AutopilotAnalyticsView() {
           </div>
           <p className="text-[10px] text-slate-500">Scheduled server-side in advance</p>
         </div>
+      </div>
       </div>
 
       {/* Two Column Layout: Top Hooks & Real-time Console */}

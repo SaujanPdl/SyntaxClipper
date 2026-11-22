@@ -9,7 +9,8 @@ from backend.database import (
     get_games,
     add_game,
     update_game,
-    delete_game
+    delete_game,
+    load_default_presets
 )
 from backend.config import get_config, save_config
 
@@ -104,3 +105,16 @@ def toggle_round_robin(body: SettingsModel):
     pref["round_robin_enabled"] = body.round_robin_enabled
     save_config({"preferences": pref})
     return {"round_robin_enabled": body.round_robin_enabled}
+
+
+@router.post("/load-presets")
+def api_load_presets():
+    """1-Click starter creator presets loader for beginners."""
+    db = load_default_presets()
+    return {
+        "success": True,
+        "message": "Starter creator presets loaded successfully",
+        "creators": db.get("creators", []),
+        "games": db.get("games", [])
+    }
+

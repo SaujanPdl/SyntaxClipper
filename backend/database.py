@@ -267,3 +267,29 @@ def get_next_round_robin_target() -> Dict[str, Any]:
 
     save_db(db)
     return {"creator": creator, "game": game}
+
+
+def load_default_presets() -> Dict[str, Any]:
+    """Resets or merges default starter creator presets and games so new users can test immediately."""
+    db = load_db()
+    existing_creator_ids = {c.get("id") for c in db.get("creators", [])}
+    for c in DEFAULT_CREATORS:
+        if c["id"] not in existing_creator_ids:
+            db.setdefault("creators", []).append(dict(c))
+        else:
+            for item in db.get("creators", []):
+                if item.get("id") == c["id"]:
+                    item["enabled"] = True
+
+    existing_game_ids = {g.get("id") for g in db.get("games", [])}
+    for g in DEFAULT_GAMES:
+        if g["id"] not in existing_game_ids:
+            db.setdefault("games", []).append(dict(g))
+        else:
+            for item in db.get("games", []):
+                if item.get("id") == g["id"]:
+                    item["enabled"] = True
+
+    save_db(db)
+    return db
+

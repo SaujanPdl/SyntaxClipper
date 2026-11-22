@@ -38,6 +38,7 @@ import {
   updateConfig,
   getConfig
 } from '@/lib/api';
+import HelpTooltip from '@/components/HelpTooltip';
 
 interface SetupWizardModalProps {
   isOpen: boolean;
@@ -282,7 +283,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                   Publishing Providers & Connected Accounts Wizard
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#191D26] text-slate-300 border border-[#242936]">
-                  v1.1
+                  v1.2.0
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -758,6 +759,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                 <h3 className="text-sm font-semibold text-white tracking-tight flex items-center space-x-2">
                   <Sliders className="w-4 h-4 text-emerald-400" />
                   <span>Platform Daily Quotas & Smart Automation</span>
+                  <HelpTooltip text="Prevents spamming social algorithms by spacing out and capping posts per platform each day." />
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Set rate limits to protect your channels from spam penalties and configure autopilot protection.
@@ -888,8 +890,9 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                   }`}
                 >
                   <div>
-                    <div className="text-xs font-semibold text-slate-200">
-                      Zero FPS Drop Game Mode Protection
+                    <div className="text-xs font-semibold text-slate-200 flex items-center space-x-1.5">
+                      <span>Zero FPS Drop Game Mode Protection</span>
+                      <HelpTooltip text="Automatically pauses video rendering when you launch a PC game so your FPS never drops." />
                     </div>
                     <div className="text-[11px] text-slate-500">
                       Automatically pauses rendering whenever any competitive game executable is detected.
