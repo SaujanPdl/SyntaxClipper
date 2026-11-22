@@ -2,10 +2,17 @@
  * api.ts - SyntaxClipper API Client
  */
 
-const API_BASE = '/api';
+export const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE = `${BACKEND_URL}/api`;
 
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${url}`, {
+  const fullUrl = url.startsWith('http://') || url.startsWith('https://')
+    ? url
+    : url.startsWith('/api')
+    ? `${BACKEND_URL}${url}`
+    : `${API_BASE}${url.startsWith('/') ? url : `/${url}`}`;
+
+  const res = await fetch(fullUrl, {
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -46,7 +53,8 @@ export const updateProviderSettings = (payload: any) => fetchJson<any>('/provide
 
 // Unified Queue & Publishing Schedule API
 export const getQueueStatus = () => fetchJson<any>('/queue/status');
-export const getQueuePosts = (status?: string) => fetchJson<any>(`/queue/posts${status ? `?status=${status}` : ''}`);
+export const getQueuePosts = (status?: string) => fetchJson<any>(`/queue${status ? `?status=${status}` : ''}`);
+export const getQueue = (status?: string) => fetchJson<any>(`/queue${status ? `?status=${status}` : ''}`);
 export const retryQueuePost = (postId: string) => fetchJson<any>(`/queue/retry/${postId}`, { method: 'POST' });
 export const deleteQueuePost = (postId: string) => fetchJson<any>(`/queue/posts/${postId}`, { method: 'DELETE' });
 

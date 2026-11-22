@@ -58,9 +58,12 @@ export default function QueueCalendarView({ onOpenWizard }: QueueCalendarViewPro
       if (statusRes) {
         setProviderInfo(statusRes);
       }
-      setPosts(postsRes.posts || []);
+      setPosts(postsRes?.posts || []);
+      if (postsRes?.warning) {
+        setErrorMsg(postsRes.warning);
+      }
     } catch (e: any) {
-      setErrorMsg(e.message || 'Failed to fetch publishing queue');
+      setErrorMsg(e?.message || 'Failed to fetch publishing queue');
     } finally {
       setLoading(false);
     }

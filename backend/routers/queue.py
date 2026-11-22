@@ -36,6 +36,8 @@ def get_queue_status():
     return active_info
 
 
+@router.get("")
+@router.get("/")
 @router.get("/posts")
 def list_queue_posts(status: Optional[str] = None):
     """Dynamically routes post queue retrieval based on active provider mode:
@@ -43,6 +45,7 @@ def list_queue_posts(status: Optional[str] = None):
     - In Zernio mode: queries Zernio REST API + failed posts.
     - In YouTube Direct mode: queries YouTube Studio scheduled videos + failed posts.
     - In Local Only mode: returns local buffer status.
+    Hardened against partial provider failures: never crashes or raises HTTP errors on 401 or network timeouts.
     """
     cfg = get_config()
     active_info = get_active_provider(cfg)
@@ -50,7 +53,14 @@ def list_queue_posts(status: Optional[str] = None):
     status_filter = (status or "ALL").upper()
 
     all_posts: List[Dict[str, Any]] = []
-    failed_items = load_failed_posts()
+    warnings: List[str] = []
+
+    # 1. Independent local failed posts loader
+    try:
+        failed_items = load_failed_posts()
+    except Exception as e:
+        failed_items = []
+        warnings.append(f"Local failed log unavailable: {e}")
 
     # Helper to add failed items if filter matches
     def append_failed_posts():
@@ -62,28 +72,26 @@ def list_queue_posts(status: Optional[str] = None):
                     all_posts.append(f)
                     seen_ids.add(fid)
 
-    # 1. HYBRID PRO MODE (YouTube Direct + Zernio)
+    # 2. HYBRID PRO MODE (YouTube Direct + Zernio)
     if provider == "hybrid":
         zernio_key = cfg.get("zernio_api_key", "").strip()
-        zernio_error = None
 
-        # Fetch Zernio posts if key configured
+        # Independent Zernio fetch
         if zernio_key:
             try:
                 z_posts = get_zernio_posts(zernio_key, status_filter=status_filter)
                 all_posts.extend(z_posts)
             except ValueError as e:
-                if "401" in str(e) or "unauthorized" in str(e).lower():
-                    zernio_error = "Zernio API Key is invalid or unauthorized."
+                warnings.append(str(e))
             except Exception as e:
-                zernio_error = f"Zernio sync error: {str(e)}"
+                warnings.append(f"Zernio sync notice: {str(e)}")
 
-        # Fetch YouTube Studio Scheduled posts
+        # Independent YouTube Studio Scheduled posts fetch
         try:
             yt_posts = get_scheduled_youtube_videos(filter_status=status_filter)
             all_posts.extend(yt_posts)
         except Exception as e:
-            pass
+            warnings.append(f"YouTube Direct sync notice: {str(e)}")
 
         # Include local failed posts diagnostics
         append_failed_posts()
@@ -100,10 +108,10 @@ def list_queue_posts(status: Optional[str] = None):
             "provider": "hybrid",
             "provider_name": "Hybrid Pro (YouTube + Zernio)",
             "total": len(all_posts),
-            "warning": zernio_error
+            "warning": " | ".join(warnings) if warnings else None
         }
 
-    # 2. ALL-IN-ONE ZERNIO MODE
+    # 3. ALL-IN-ONE ZERNIO MODE
     elif provider == "zernio":
         zernio_key = cfg.get("zernio_api_key", "").strip()
         if not zernio_key:
@@ -113,39 +121,43 @@ def list_queue_posts(status: Optional[str] = None):
                 "provider": "zernio",
                 "provider_name": "Zernio",
                 "total": len(all_posts),
-                "message": "Zernio API key is empty. Configure it in Settings & Wizard."
+                "warning": "Zernio API key is empty. Configure it in Settings & Wizard."
             }
         try:
             posts = get_zernio_posts(zernio_key, status_filter=status_filter)
             all_posts.extend(posts)
         except ValueError as e:
-            if "401" in str(e) or "unauthorized" in str(e).lower():
-                raise HTTPException(status_code=401, detail="Zernio API Key is invalid or unauthorized. Please verify in Settings.")
-            raise HTTPException(status_code=400, detail=str(e))
+            warnings.append(str(e))
         except Exception as e:
-            all_posts = []
+            warnings.append(f"Zernio sync notice: {str(e)}")
 
         append_failed_posts()
         return {
             "posts": all_posts,
             "provider": "zernio",
             "provider_name": "Zernio",
-            "total": len(all_posts)
+            "total": len(all_posts),
+            "warning": " | ".join(warnings) if warnings else None
         }
 
-    # 3. YOUTUBE DIRECT ONLY MODE
+    # 4. YOUTUBE DIRECT ONLY MODE
     elif provider == "youtube_direct":
-        yt_posts = get_scheduled_youtube_videos(filter_status=status_filter)
-        all_posts.extend(yt_posts)
+        try:
+            yt_posts = get_scheduled_youtube_videos(filter_status=status_filter)
+            all_posts.extend(yt_posts)
+        except Exception as e:
+            warnings.append(f"YouTube Studio sync notice: {str(e)}")
+
         append_failed_posts()
         return {
             "posts": all_posts,
             "provider": "youtube_direct",
             "provider_name": "YouTube Studio Scheduled",
-            "total": len(all_posts)
+            "total": len(all_posts),
+            "warning": " | ".join(warnings) if warnings else None
         }
 
-    # 4. WOOPSOCIAL (LEGACY)
+    # 5. WOOPSOCIAL (LEGACY)
     elif provider == "woopsocial":
         woop_key = cfg.get("woopsocial_api_key", "").strip()
         if not woop_key:
@@ -155,33 +167,32 @@ def list_queue_posts(status: Optional[str] = None):
                 "provider": "woopsocial",
                 "provider_name": "WoopSocial",
                 "total": len(all_posts),
-                "message": "WoopSocial API key is empty. Configure it in Settings & Wizard."
+                "warning": "WoopSocial API key is empty. Configure it in Settings & Wizard."
             }
         try:
             posts = get_social_account_posts(woop_key, status_filter=status_filter)
             all_posts.extend(posts)
         except Exception as e:
-            err_str = str(e)
-            if "401" in err_str or "unauthorized" in err_str.lower():
-                raise HTTPException(status_code=401, detail="WoopSocial API Key is unauthorized. Please verify in Settings.")
-            raise HTTPException(status_code=500, detail=err_str)
+            warnings.append(f"WoopSocial sync notice: {str(e)}")
 
         append_failed_posts()
         return {
             "posts": all_posts,
             "provider": "woopsocial",
             "provider_name": "WoopSocial",
-            "total": len(all_posts)
+            "total": len(all_posts),
+            "warning": " | ".join(warnings) if warnings else None
         }
 
-    # 5. LOCAL ONLY
+    # 6. LOCAL ONLY
     append_failed_posts()
     return {
         "posts": all_posts,
         "provider": "local_only",
         "provider_name": "Local Export",
         "total": len(all_posts),
-        "message": "Connected in Local Mode. Clips are saved to exports/local/<creator>/."
+        "message": "Connected in Local Mode. Clips are saved to exports/local/<creator>/.",
+        "warning": " | ".join(warnings) if warnings else None
     }
 
 
