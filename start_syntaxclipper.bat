@@ -33,7 +33,7 @@ start "SyntaxClipper Frontend" /min cmd /c "npm run start"
 cd ..
 
 echo [4/4] Opening SyntaxClipper in your browser...
-timeout /t 3 /nobreak >nul
+ping 127.0.0.1 -n 4 >nul 2>&1
 start http://localhost:3000
 
 echo.
