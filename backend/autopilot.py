@@ -34,6 +34,7 @@ from backend.config import (
 )
 import backend.bin_resolver
 from backend.database import get_next_round_robin_target, get_creators, get_games
+from backend.publisher import publish_clip
 from backend.services.woopsocial_client import (
     verify_connection,
     get_social_account_posts,
@@ -317,9 +318,9 @@ def run_autopilot_cycle() -> Dict[str, Any]:
         except Exception:
             pass
 
-    # 5. Process Ready Queue: Upload & Cloud-Schedule
+    # 5. Process Ready Queue: Multi-Platform Upload & Cloud-Schedule
     ready_clips = list(QUEUE_READY.glob("*.mp4"))
-    if ready_clips and project_id and target_accounts and (yt_allowed or tiktok_allowed):
+    if ready_clips and (yt_allowed or tiktok_allowed or pref.get("target_platforms")):
         clip_file = ready_clips[0]
         meta_file = clip_file.with_suffix(".json")
         meta = {}
@@ -330,15 +331,10 @@ def run_autopilot_cycle() -> Dict[str, Any]:
             except Exception:
                 pass
 
-        log_event(f"Processing ready clip for upload: {clip_file.name}")
+        log_event(f"Processing ready clip for publishing: {clip_file.name}")
         try:
-            # Upload media chunk
-            media_id = upload_media_session(api_key, project_id, clip_file)
-            log_event(f"Media chunk uploaded -> mediaId: {media_id}")
-
             # Smart Scheduling: Calculate release time
             now_utc = datetime.datetime.now(datetime.timezone.utc)
-            # YouTube gets 6h spacing; TikTok gets 2h spacing
             interval_hours = 6 if yt_allowed else 2
             sched_time = (now_utc + datetime.timedelta(hours=interval_hours)).isoformat().replace("+00:00", "Z")
 
@@ -346,18 +342,20 @@ def run_autopilot_cycle() -> Dict[str, Any]:
             creator = meta.get("creator", "Live Streamer")
             desc = f"{title}\n\nCreator: {creator}\n#Shorts"
 
-            accounts_data = [{"id": acc_id} for acc_id in target_accounts]
-            post_res = create_or_schedule_post(
-                api_key=api_key,
-                project_id=project_id,
-                media_id=media_id,
+            target_plats = pref.get("target_platforms") or ["youtube", "tiktok", "instagram"]
+            pub_res = publish_clip(
+                clip_path=clip_file,
                 title=title,
-                yt_description=desc,
-                tiktok_caption=desc,
-                account_targets=accounts_data,
+                captions={
+                    "youtube_desc": desc,
+                    "tiktok": f"{title} 🔥 #shorts #gaming #viral",
+                    "instagram": f"{title} 🔥 #reels #gaming"
+                },
+                target_platforms=target_plats,
+                creator_name=creator,
                 scheduled_iso=sched_time
             )
-            log_event(f"Post scheduled on WoopSocial cloud queue for {sched_time} (Post ID: {post_res.get('id', 'OK')})")
+            log_event(f"Autopilot publish dispatched: {pub_res.get('platform_results')}")
 
             # 6. Immediate Auto-Cleanup to preserve zero local disk usage
             if pref.get("auto_delete_local_clips", True):

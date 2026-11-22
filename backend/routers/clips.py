@@ -24,6 +24,7 @@ from backend.services.woopsocial_client import (
     create_or_schedule_post,
     verify_connection
 )
+from backend.publisher import publish_clip
 from backend.services.multi_publisher import publish_clip_multi_platform
 
 router = APIRouter(prefix="/api/clips", tags=["clips"])
@@ -316,7 +317,7 @@ def publish_multi_platform_endpoint(req: PublishMultiRequest):
     }
 
     try:
-        res = publish_clip_multi_platform(
+        res = publish_clip(
             clip_path=clip_file,
             title=req.title,
             captions=captions,

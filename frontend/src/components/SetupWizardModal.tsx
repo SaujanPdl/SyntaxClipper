@@ -283,7 +283,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                   Publishing Providers & Connected Accounts Wizard
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#191D26] text-slate-300 border border-[#242936]">
-                  v1.2.0
+                  v1.3.0
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -468,25 +468,52 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                 </p>
               </div>
 
-              {/* Publishing Mode Selector Tabs */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {/* Publishing Mode Selector Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {[
-                  { id: 'hybrid', label: 'Hybrid Mode', desc: 'YouTube Direct + Zernio/Woop' },
-                  { id: 'zernio', label: 'Zernio API', desc: '1-Key Multi-Platform' },
-                  { id: 'youtube_direct', label: 'YouTube Direct', desc: '100 uploads/day free' },
-                  { id: 'local_only', label: 'Local Only', desc: 'Zero API keys required' },
+                  {
+                    id: 'zernio',
+                    badge: 'Recommended for Beginners',
+                    badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+                    label: 'All-in-One Zernio',
+                    desc: 'Post to YouTube Shorts, TikTok, and Instagram using just one Zernio API key.'
+                  },
+                  {
+                    id: 'hybrid',
+                    badge: 'Maximum Quota',
+                    badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+                    label: 'Hybrid Pro Mode',
+                    desc: 'Direct YouTube Data API v3 (publishAt native scheduling) for 20+ daily Shorts, plus Zernio for TikTok & Instagram.'
+                  },
+                  {
+                    id: 'local_only',
+                    badge: 'Offline & Free',
+                    badgeColor: 'text-slate-400 bg-slate-500/10 border-slate-500/30',
+                    label: 'Local Mode Only',
+                    desc: 'Render and save 9:16 vertical .mp4 clips locally to exports/ without any API keys.'
+                  },
                 ].map((m) => (
                   <button
                     key={m.id}
                     onClick={() => setPublishingMode(m.id)}
-                    className={`p-3 rounded-xl border text-left transition-all ${
+                    className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
                       publishingMode === m.id
-                        ? 'bg-emerald-500/10 border-emerald-500 text-white'
+                        ? 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/50 text-white'
                         : 'bg-[#0B0D11] border-[#242936] hover:border-slate-500 text-slate-400'
                     }`}
                   >
-                    <div className="text-xs font-bold text-slate-200">{m.label}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{m.desc}</div>
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-1.5">
+                        <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${m.badgeColor}`}>
+                          {m.badge}
+                        </span>
+                        {publishingMode === m.id && (
+                          <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-slate-100">{m.label}</div>
+                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">{m.desc}</div>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -833,7 +860,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                   <input
                     type="range"
                     min="1"
-                    max="20"
+                    max="30"
                     value={ttDailyCap}
                     onChange={(e) => setTtDailyCap(Number(e.target.value))}
                     className="w-full accent-emerald-500 cursor-pointer"
@@ -849,7 +876,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                   <input
                     type="range"
                     min="1"
-                    max="20"
+                    max="30"
                     value={reelsDailyCap}
                     onChange={(e) => setReelsDailyCap(Number(e.target.value))}
                     className="w-full accent-emerald-500 cursor-pointer"

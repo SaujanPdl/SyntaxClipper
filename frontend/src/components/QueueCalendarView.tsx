@@ -228,14 +228,32 @@ export default function QueueCalendarView({ onOpenWizard }: QueueCalendarViewPro
                           {status}
                         </span>
 
+                        {/* Provider / Channel Badge */}
+                        {p.provider_name && (
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                            p.provider === 'youtube_direct'
+                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          }`}>
+                            {p.provider_name}
+                          </span>
+                        )}
+
                         {/* Platform Badge */}
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0E1015] text-slate-300 border border-[#262B38]">
                           {p.platform || 'MULTI-PLATFORM'}
                         </span>
 
-                        <span className="text-[11px] font-mono text-slate-500">
-                          {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : ''}
-                        </span>
+                        {(p.publishAt || p.scheduledFor) ? (
+                          <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            {new Date(p.publishAt || p.scheduledFor).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-mono text-slate-500">
+                            {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : ''}
+                          </span>
+                        )}
                       </div>
 
                       <h4 className="text-xs font-semibold text-slate-200 truncate">

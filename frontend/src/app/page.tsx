@@ -141,7 +141,7 @@ export default function Home() {
                   SyntaxClipper
                 </span>
                 <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  v1.2.0
+                  v1.3.0
                 </span>
               </div>
               <div className="mt-1">
@@ -297,13 +297,13 @@ export default function Home() {
                 <span className="text-[10px] font-bold text-emerald-400">New!</span>
               </span>
             ) : (
-              <span className="text-[10px] text-slate-600">v1.2.0</span>
+              <span className="text-[10px] text-slate-600">v1.3.0</span>
             )}
           </button>
 
           {/* Version & Badge Footer */}
           <div className="px-1 pt-0.5 flex items-center justify-between text-[10px] font-mono text-slate-500">
-            <span>v1.2.0 • Syntax Nepal</span>
+            <span>v1.3.0 • Syntax Nepal</span>
             <span className="flex items-center space-x-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-emerald-400">Ready</span>

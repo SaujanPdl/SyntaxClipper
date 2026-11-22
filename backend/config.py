@@ -186,27 +186,27 @@ def get_active_provider(cfg: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     woop_key = (cfg.get("woopsocial_api_key") or "").strip()
     has_yt_oauth = YOUTUBE_TOKEN_PATH.exists()
 
-    if mode == "zernio" or (mode == "hybrid" and zernio_key and not woop_key):
+    if mode == "hybrid":
+        return {
+            "provider": "hybrid",
+            "name": "Hybrid Pro",
+            "label": "Hybrid Pro Queue & Calendar (YouTube Direct + Zernio)",
+            "is_connected": bool(zernio_key or has_yt_oauth),
+            "mode": mode
+        }
+    elif mode == "zernio":
         return {
             "provider": "zernio",
             "name": "Zernio",
-            "label": "Zernio Queue & Calendar",
+            "label": "Zernio Multi-Platform Queue & Calendar",
             "is_connected": bool(zernio_key),
-            "mode": mode
-        }
-    elif mode == "woopsocial" or (mode == "hybrid" and woop_key and not zernio_key):
-        return {
-            "provider": "woopsocial",
-            "name": "WoopSocial",
-            "label": "WoopSocial Queue & Calendar",
-            "is_connected": bool(woop_key),
             "mode": mode
         }
     elif mode == "youtube_direct":
         return {
             "provider": "youtube_direct",
-            "name": "YouTube Direct v3",
-            "label": "Direct YouTube Uploads & Queue",
+            "name": "YouTube Studio Scheduled",
+            "label": "YouTube Studio Scheduled Queue",
             "is_connected": has_yt_oauth,
             "mode": mode
         }
@@ -218,13 +218,20 @@ def get_active_provider(cfg: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             "is_connected": True,
             "mode": mode
         }
-    else:  # Hybrid mode
-        active = "zernio" if zernio_key else ("woopsocial" if woop_key else "hybrid")
+    elif mode == "woopsocial":
         return {
-            "provider": active,
-            "name": "Publishing Studio" if active == "hybrid" else ("Zernio" if active == "zernio" else "WoopSocial"),
-            "label": "Publishing Queue & Calendar",
-            "is_connected": bool(zernio_key or woop_key or has_yt_oauth),
+            "provider": "woopsocial",
+            "name": "WoopSocial",
+            "label": "WoopSocial Queue & Calendar",
+            "is_connected": bool(woop_key),
+            "mode": mode
+        }
+    else:
+        return {
+            "provider": "hybrid",
+            "name": "Hybrid Pro",
+            "label": "Hybrid Pro Queue & Calendar",
+            "is_connected": bool(zernio_key or has_yt_oauth or woop_key),
             "mode": mode
         }
 

@@ -188,70 +188,21 @@ def upload_youtube_direct(
     description: str,
     tags: Optional[List[str]] = None,
     privacy_status: str = "private",
+    scheduled_iso: Optional[str] = None,
     progress_callback = None
 ) -> Dict[str, Any]:
-    """Uploads a video directly to YouTube via Data API v3 resumable upload.
-    Free tier allows up to 100 uploads/day (1,600 units per upload / 10,000 daily quota limit).
+    """Uploads or schedules a video directly to YouTube via Data API v3 resumable upload.
+    Free tier allows up to 100 uploads/day.
+    Delegates to backend.youtube_publisher.schedule_youtube_short to support native publishAt scheduling
+    and unified queue tracking.
     """
-    if not video_path.exists():
-        raise FileNotFoundError(f"Video file not found: {video_path}")
-
-    if not YOUTUBE_TOKEN_PATH.exists():
-        raise FileNotFoundError("YouTube is not authorized. Please complete OAuth authorization.")
-
-    from google.oauth2.credentials import Credentials
-    from google.auth.transport.requests import Request
-    from googleapiclient.discovery import build
-    from googleapiclient.http import MediaFileUpload
-
-    creds = Credentials.from_authorized_user_file(str(YOUTUBE_TOKEN_PATH), SCOPES)
-    if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-        with open(YOUTUBE_TOKEN_PATH, "w", encoding="utf-8") as f:
-            f.write(creds.to_json())
-
-    youtube = build("youtube", "v3", credentials=creds)
-
-    clean_title = title[:100]
-    if "#Shorts" not in clean_title and "#Shorts" not in description:
-        description += "\n\n#Shorts"
-
-    body = {
-        "snippet": {
-            "title": clean_title,
-            "description": description,
-            "tags": tags or ["Shorts", "gaming", "viral", "highlights"],
-            "categoryId": "20"  # Gaming category
-        },
-        "status": {
-            "privacyStatus": privacy_status,
-            "selfDeclaredMadeForKids": False
-        }
-    }
-
-    media = MediaFileUpload(str(video_path), mimetype="video/mp4", resumable=True, chunksize=1024 * 1024 * 4)
-
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body=body,
-        media_body=media
+    from backend.youtube_publisher import schedule_youtube_short
+    return schedule_youtube_short(
+        video_path=video_path,
+        title=title,
+        description=description,
+        scheduled_iso_utc=scheduled_iso,
+        tags=tags,
+        privacy_status=privacy_status,
+        progress_callback=progress_callback
     )
-
-    response = None
-    while response is None:
-        status, response = request.next_chunk()
-        if status and progress_callback:
-            progress_callback(f"YouTube upload progress: {int(status.progress() * 100)}%")
-
-    video_id = response.get("id")
-    video_url = f"https://youtu.be/{video_id}"
-    logger.info(f"Direct YouTube Upload Successful: {video_url} ({privacy_status})")
-
-    return {
-        "success": True,
-        "video_id": video_id,
-        "url": video_url,
-        "title": clean_title,
-        "privacy_status": privacy_status,
-        "response": response
-    }

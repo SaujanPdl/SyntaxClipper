@@ -1,6 +1,6 @@
 # SyntaxClipper — Beginner's User Manual & Guide
 **Autonomous Video Clipper, 9:16 Vertical Cropper & Multi-Platform Publisher**  
-*Built with ❤️ by Syntax Nepal • Version 1.2.0*
+*Built with ❤️ by Syntax Nepal • Version 1.3.0*
 
 ---
 
