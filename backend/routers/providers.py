@@ -30,6 +30,7 @@ class SaveCredentialsRequest(BaseModel):
 
 class ExchangeCodeRequest(BaseModel):
     code: str
+    state: Optional[str] = None
     redirect_uri: Optional[str] = "http://localhost:8000/api/providers/youtube/callback"
 
 
@@ -80,9 +81,11 @@ def upload_youtube_token(req: SaveCredentialsRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/youtube/auth")
+@router.post("/youtube/auth")
 @router.post("/youtube/auth-url")
 def youtube_auth_url(redirect_uri: Optional[str] = "http://localhost:8000/api/providers/youtube/callback"):
-    """Generates the Google OAuth authorization URL."""
+    """Generates the Google OAuth authorization URL with PKCE verifier."""
     try:
         return get_authorization_url(redirect_uri or "http://localhost:8000/api/providers/youtube/callback")
     except Exception as e:
@@ -93,56 +96,131 @@ def youtube_auth_url(redirect_uri: Optional[str] = "http://localhost:8000/api/pr
 def youtube_callback_post(req: ExchangeCodeRequest):
     """Exchanges authorization code for tokens and saves youtube_token.json."""
     try:
-        res = exchange_code_for_token(req.code, req.redirect_uri or "http://localhost:8000/api/providers/youtube/callback")
+        res = exchange_code_for_token(
+            code=req.code,
+            redirect_uri=req.redirect_uri or "http://localhost:8000/api/providers/youtube/callback",
+            state=req.state
+        )
         return res
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/youtube/callback", response_class=HTMLResponse)
-def youtube_callback_get(code: Optional[str] = None, error: Optional[str] = None):
-    """Browser redirect handler for OAuth flow."""
+def youtube_callback_get(code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+    """Browser redirect handler for OAuth flow with PKCE verifier lookup."""
     if error:
         return f"""
+        <!DOCTYPE html>
         <html>
-            <body style="background:#0B0D11;color:#F43F5E;font-family:sans-serif;padding:40px;text-align:center;">
-                <h2>YouTube Authorization Failed</h2>
-                <p>{error}</p>
-                <p>You can close this window and try again in SyntaxClipper.</p>
+            <head><title>YouTube Authorization Failed</title></head>
+            <body style="background:#0B0D11;color:#F43F5E;font-family:system-ui,-apple-system,sans-serif;padding:60px;text-align:center;">
+                <div style="background:#12151C;border:1px solid #242936;border-radius:16px;padding:40px;max-width:540px;margin:0 auto;">
+                    <h2 style="font-size:22px;margin:0 0 12px 0;">YouTube Authorization Failed</h2>
+                    <p style="color:#94A3B8;font-size:14px;line-height:1.5;margin:0 0 16px 0;">{error}</p>
+                    <p style="color:#64748B;font-size:12px;">You can close this window and try again in SyntaxClipper.</p>
+                </div>
             </body>
         </html>
         """
 
     if not code:
         return """
+        <!DOCTYPE html>
         <html>
-            <body style="background:#0B0D11;color:#F0F3F6;font-family:sans-serif;padding:40px;text-align:center;">
-                <h2>No code received</h2>
-                <p>Please return to SyntaxClipper and retry.</p>
+            <head><title>No Code Received</title></head>
+            <body style="background:#0B0D11;color:#F0F3F6;font-family:system-ui,-apple-system,sans-serif;padding:60px;text-align:center;">
+                <div style="background:#12151C;border:1px solid #242936;border-radius:16px;padding:40px;max-width:540px;margin:0 auto;">
+                    <h2 style="font-size:22px;margin:0 0 12px 0;">No Authorization Code Received</h2>
+                    <p style="color:#94A3B8;font-size:14px;">Please return to SyntaxClipper and retry authorizing your YouTube channel.</p>
+                </div>
             </body>
         </html>
         """
 
     try:
-        exchange_code_for_token(code)
-        return """
+        res = exchange_code_for_token(code=code, state=state)
+        channel_title = res.get("status", {}).get("channel", {}).get("title") or "Your Channel"
+        return f"""
+        <!DOCTYPE html>
         <html>
-            <body style="background:#0B0D11;color:#10B981;font-family:sans-serif;padding:40px;text-align:center;">
-                <h2>YouTube Channel Authorized Successfully!</h2>
-                <p style="color:#94A3B8;">SyntaxClipper is now authorized to upload YouTube Shorts directly.</p>
-                <p style="color:#94A3B8;">You can now close this tab and return to the SyntaxClipper app.</p>
+            <head>
+                <title>YouTube Connected</title>
+                <style>
+                    body {{
+                        background: #0B0D11;
+                        color: #10B981;
+                        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        min-height: 100vh;
+                        margin: 0;
+                    }}
+                    .card {{
+                        background: #12151C;
+                        border: 1px solid #242936;
+                        border-radius: 16px;
+                        padding: 48px;
+                        text-align: center;
+                        max-width: 480px;
+                        box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+                    }}
+                    .badge {{
+                        background: rgba(16, 185, 129, 0.15);
+                        color: #34D399;
+                        border: 1px solid rgba(16, 185, 129, 0.3);
+                        display: inline-block;
+                        padding: 6px 16px;
+                        border-radius: 9999px;
+                        font-size: 13px;
+                        font-weight: 600;
+                        margin-bottom: 20px;
+                    }}
+                    h2 {{
+                        color: #FFFFFF;
+                        font-size: 22px;
+                        margin: 0 0 8px 0;
+                    }}
+                    p {{
+                        color: #94A3B8;
+                        font-size: 14px;
+                        line-height: 1.5;
+                        margin: 0 0 20px 0;
+                    }}
+                    .timer {{
+                        color: #64748B;
+                        font-size: 12px;
+                        font-family: monospace;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="badge">✓ Connected Successfully</div>
+                    <h2>YouTube Connected!</h2>
+                    <p>Authorized channel: <strong style="color:#FFF;">{channel_title}</strong>.<br/>SyntaxClipper is now ready to upload and schedule YouTube Shorts directly.</p>
+                    <p class="timer">YouTube Connected! You can close this tab and return to SyntaxClipper.</p>
+                </div>
                 <script>
-                    setTimeout(() => window.close(), 3000);
+                    setTimeout(() => {{
+                        try {{ window.close(); }} catch(e) {{}}
+                    }}, 2500);
                 </script>
             </body>
         </html>
         """
     except Exception as e:
         return f"""
+        <!DOCTYPE html>
         <html>
-            <body style="background:#0B0D11;color:#F43F5E;font-family:sans-serif;padding:40px;text-align:center;">
-                <h2>Authorization Exchange Error</h2>
-                <p>{str(e)}</p>
+            <head><title>Authorization Exchange Error</title></head>
+            <body style="background:#0B0D11;color:#F43F5E;font-family:system-ui,-apple-system,sans-serif;padding:60px;text-align:center;">
+                <div style="background:#12151C;border:1px solid #242936;border-radius:16px;padding:40px;max-width:540px;margin:0 auto;">
+                    <h2 style="font-size:22px;margin:0 0 12px 0;">Authorization Exchange Error</h2>
+                    <p style="color:#FDA4AF;font-size:14px;line-height:1.5;margin:0 0 16px 0;word-break:break-word;">{str(e)}</p>
+                    <p style="color:#64748B;font-size:12px;">Please return to SyntaxClipper Setup Wizard and click "Authorize YouTube Channel" again.</p>
+                </div>
             </body>
         </html>
         """

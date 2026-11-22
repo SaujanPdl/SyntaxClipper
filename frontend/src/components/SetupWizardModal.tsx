@@ -92,6 +92,13 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
     if (isOpen) {
       loadInitialData();
     }
+    const handleFocus = () => {
+      if (isOpen) {
+        checkYouTubeStatus();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [isOpen]);
 
   const loadInitialData = async () => {
@@ -137,8 +144,10 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
     try {
       const status = await getYouTubeStatus();
       setYtStatus(status);
+      return status;
     } catch (e) {
       console.error(e);
+      return null;
     }
   };
 
@@ -226,6 +235,15 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
       const res = await getYouTubeAuthUrl();
       if (res.auth_url) {
         window.open(res.auth_url, '_blank', 'width=650,height=750');
+        // Poll for authorization completion so Setup Wizard detects connection immediately
+        let attempts = 0;
+        const pollInterval = setInterval(async () => {
+          attempts += 1;
+          const status = await checkYouTubeStatus();
+          if (status?.configured || attempts > 30) {
+            clearInterval(pollInterval);
+          }
+        }, 2000);
       }
     } catch (e: any) {
       alert(e.message || 'Failed to generate YouTube authorization URL');
