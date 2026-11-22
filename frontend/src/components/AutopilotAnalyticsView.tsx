@@ -38,6 +38,7 @@ import {
   updateConfig
 } from '@/lib/api';
 import HelpTooltip from '@/components/HelpTooltip';
+import PipelineProgressBar from '@/components/PipelineProgressBar';
 
 export default function AutopilotAnalyticsView() {
   const [autopilot, setAutopilot] = useState<any>(null);
@@ -271,6 +272,9 @@ export default function AutopilotAnalyticsView() {
           </button>
         </div>
       </div>
+
+      {/* Live Pipeline Progress Bar */}
+      <PipelineProgressBar onRefresh={loadData} />
 
       {/* 4-Layer Universal Game Mode & 3-Tier Performance Card */}
       <div className="bg-[#12151C] border border-[#242936] rounded-xl p-5 space-y-4">

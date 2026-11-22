@@ -11,6 +11,7 @@ import socket
 import datetime
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
 
@@ -44,6 +45,13 @@ from backend.services.woopsocial_client import (
 from backend.services.clipper_engine import (
     render_916_clip,
     download_vod_segment
+)
+from backend.pipeline import (
+    AutopilotFileLock,
+    execute_autonomous_clip_pipeline,
+    get_pipeline_progress,
+    set_pipeline_progress,
+    reset_pipeline_progress
 )
 
 # Background Subprocess Flags: CREATE_NO_WINDOW (0x08000000) + BELOW_NORMAL_PRIORITY_CLASS (0x00004000)
@@ -272,8 +280,54 @@ def is_windows_task_installed() -> bool:
 # Autonomous Processing Cycle
 # ==============================================================================
 
+_wake_event = threading.Event()
+
+
+def wake_autopilot_scheduler() -> None:
+    """Signals the in-process FastAPI scheduler to run immediately."""
+    _wake_event.set()
+    log_event("FastAPI Autopilot scheduler woken up immediately.")
+
+
+def run_fastapi_autopilot_scheduler(stop_event: threading.Event) -> None:
+    """Daemon scheduler loop running inside FastAPI lifespan."""
+    log_event("FastAPI in-process Autopilot scheduler initialized.")
+    # Initial pause of 5 seconds to let server start up smoothly
+    if stop_event.wait(timeout=5):
+        return
+
+    while not stop_event.is_set():
+        try:
+            cfg = get_config()
+            if cfg.get("autopilot_enabled", True) and is_api_key_configured():
+                log_event("FastAPI background scheduler triggering Autopilot cycle.")
+                run_autopilot_cycle()
+        except Exception as e:
+            log_event(f"FastAPI background scheduler error: {e}")
+
+        # Sleep up to 15 minutes (900 seconds) or until woken by _wake_event or stop_event
+        _wake_event.clear()
+        start_wait = time.time()
+        while time.time() - start_wait < 900:
+            if stop_event.is_set() or _wake_event.is_set():
+                break
+            time.sleep(1)
+        _wake_event.clear()
+
+
 def run_autopilot_cycle() -> Dict[str, Any]:
-    """Executes a single catch-up and scheduling cycle."""
+    """Executes a single catch-up and scheduling cycle with cross-process file lock."""
+    with AutopilotFileLock() as acquired:
+        if not acquired:
+            log_event("Autopilot cycle skipped: another process currently holds the autopilot lock.")
+            state = read_status_file()
+            state["current_action"] = "Autopilot busy in concurrent process"
+            return state
+        return _run_autopilot_cycle_impl()
+
+
+def _run_autopilot_cycle_impl() -> Dict[str, Any]:
+    """Internal implementation of autopilot cycle."""
     cfg = get_config()
     pref = cfg.get("preferences", {})
 
@@ -410,6 +464,10 @@ def run_autopilot_cycle() -> Dict[str, Any]:
         g = target.get("game")
         target_name = c.get("name") if c else (g.get("name") if g else "Gaming")
         log_event(f"Buffer low ({remaining_clips} clips). Next round-robin candidate: {target_name}")
+        try:
+            execute_autonomous_clip_pipeline(target_creator=c)
+        except Exception as e:
+            log_event(f"Autonomous pipeline execution error: {e}")
 
     state = {
         "is_running": True,
@@ -420,6 +478,8 @@ def run_autopilot_cycle() -> Dict[str, Any]:
         "quotas": quotas,
         "task_installed": is_windows_task_installed()
     }
+    update_status_file(state)
+    return state
     update_status_file(state)
     return state
 

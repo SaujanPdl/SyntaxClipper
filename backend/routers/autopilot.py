@@ -1,3 +1,4 @@
+import threading
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional, List
@@ -8,7 +9,12 @@ from backend.autopilot import (
     uninstall_windows_task,
     is_windows_task_installed,
     get_platform_quota_usage,
-    read_status_file
+    read_status_file,
+    wake_autopilot_scheduler
+)
+from backend.pipeline import (
+    get_pipeline_progress,
+    execute_autonomous_clip_pipeline
 )
 from backend.game_detector import detect_game_and_performance_state
 from backend.config import LOGS_DIR, get_config, save_config
@@ -59,6 +65,25 @@ def get_autopilot_status():
     return status_data
 
 
+@router.get("/progress")
+def get_progress():
+    """Live 6-stage autonomous clipping pipeline progress."""
+    return get_pipeline_progress()
+
+
+@router.post("/run-now")
+def run_now():
+    """Manually triggers an immediate single-clip autonomous pipeline run."""
+    t = threading.Thread(
+        target=execute_autonomous_clip_pipeline,
+        kwargs={"manual": True},
+        daemon=True,
+        name="ManualClipRunner"
+    )
+    t.start()
+    return {"success": True, "message": "Autopilot clip pipeline started"}
+
+
 @router.post("/toggle")
 def toggle_autopilot_endpoint(req: AutopilotToggleRequest):
     """Toggles autopilot on/off: persists to config.json and syncs Windows Task Scheduler."""
@@ -67,6 +92,7 @@ def toggle_autopilot_endpoint(req: AutopilotToggleRequest):
     if req.enabled:
         task_res = install_windows_task()
         loop_res = autopilot_service.start()
+        wake_autopilot_scheduler()
         task_registered = is_windows_task_installed()
         return {
             "success": True,

@@ -96,6 +96,8 @@ export const loadStarterPresets = () => fetchJson<any>('/library/load-presets', 
 
 // Autopilot
 export const getAutopilotStatus = () => fetchJson<any>('/autopilot/status');
+export const getPipelineProgress = () => fetchJson<any>('/autopilot/progress');
+export const runAutopilotNow = () => fetchJson<any>('/autopilot/run-now', { method: 'POST' });
 export const startAutopilot = () => fetchJson<any>('/autopilot/start', { method: 'POST' });
 export const stopAutopilot = () => fetchJson<any>('/autopilot/stop', { method: 'POST' });
 export const toggleAutopilot = (enabled: boolean) => fetchJson<any>('/autopilot/toggle', { method: 'POST', body: JSON.stringify({ enabled }) });

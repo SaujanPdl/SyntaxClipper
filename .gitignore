@@ -8,6 +8,7 @@ youtube_token.json
 youtube_scheduled_posts.json
 posted_log.json
 strategy_weights.json
+autopilot.lock
 backup_config/
 restart_syntaxclipper.bat
 *.pem

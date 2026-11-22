@@ -33,6 +33,7 @@ import UserGuideView from '@/components/UserGuideView';
 import SetupWizardModal from '@/components/SetupWizardModal';
 import UpdateModal from '@/components/UpdateModal';
 import QuickStartCard from '@/components/QuickStartCard';
+import PipelineProgressBar from '@/components/PipelineProgressBar';
 import HelpTooltip from '@/components/HelpTooltip';
 import { getConfig, getAutopilotStatus, getAnalyticsOverview, checkUpdate, getCreators } from '@/lib/api';
 
@@ -48,8 +49,23 @@ export default function Home() {
   const [updateInfo, setUpdateInfo] = useState<any>(null);
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
+  const [isHydrating, setIsHydrating] = useState<boolean>(true);
 
   useEffect(() => {
+    // Immediate hydration from cache so reload never flashes blank/default
+    try {
+      const cachedConfig = localStorage.getItem('syntaxclipper_config_cache');
+      if (cachedConfig) {
+        const parsed = JSON.parse(cachedConfig);
+        if (parsed && typeof parsed === 'object') setConfig(parsed);
+      }
+      const cachedCreators = localStorage.getItem('syntaxclipper_creators_cache');
+      if (cachedCreators) {
+        const parsedCr = JSON.parse(cachedCreators);
+        if (Array.isArray(parsedCr)) setCreators(parsedCr);
+      }
+    } catch {}
+
     checkFirstRun();
     const interval = setInterval(refreshHeaderStats, 5000);
     return () => clearInterval(interval);
@@ -83,7 +99,14 @@ export default function Home() {
       setConfig(cfg);
       setAutopilotStatus(auto);
       setAnalytics(an);
-      setCreators(crs?.creators || []);
+      const crList = crs?.creators || [];
+      setCreators(crList);
+
+      // Persist to localStorage for zero-flicker F5 reload resilience
+      try {
+        localStorage.setItem('syntaxclipper_config_cache', JSON.stringify(cfg));
+        localStorage.setItem('syntaxclipper_creators_cache', JSON.stringify(crList));
+      } catch {}
 
       // Check for GitHub updates silently
       handleCheckUpdates(false);
@@ -95,7 +118,12 @@ export default function Home() {
       }
     } catch (e) {
       console.error(e);
-      setShowWizard(true);
+      // Only pop up wizard on error if we have no prior config
+      if (!config) {
+        setShowWizard(true);
+      }
+    } finally {
+      setIsHydrating(false);
     }
   };
 
@@ -303,13 +331,13 @@ export default function Home() {
                 <span className="text-[10px] font-bold text-emerald-400">New!</span>
               </span>
             ) : (
-              <span className="text-[10px] text-slate-600">v1.3.0</span>
+              <span className="text-[10px] text-slate-600">v1.4.0</span>
             )}
           </button>
 
           {/* Version & Badge Footer */}
           <div className="px-1 pt-0.5 flex items-center justify-between text-[10px] font-mono text-slate-500">
-            <span>v1.3.0 • Syntax Nepal</span>
+            <span>v1.4.0 • Syntax Nepal</span>
             <span className="flex items-center space-x-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-emerald-400">Ready</span>
@@ -430,6 +458,11 @@ export default function Home() {
 
         {/* View Container */}
         <main className={`flex-1 overflow-y-auto ${activeTab === 'manual' || activeTab === 'exports' ? 'p-0 flex flex-col' : 'p-6'}`}>
+          {/* Live Pipeline Progress Bar */}
+          <div className={activeTab === 'manual' || activeTab === 'exports' ? 'p-6 pb-0' : ''}>
+            <PipelineProgressBar onRefresh={refreshHeaderStats} />
+          </div>
+
           {/* Interactive 3-Step Quick Start Guide Card */}
           <div className={activeTab === 'manual' || activeTab === 'exports' ? 'p-6 pb-0' : ''}>
             <QuickStartCard

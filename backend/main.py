@@ -3,6 +3,8 @@ Branded "SyntaxClipper by Syntax Nepal"
 """
 
 import sys
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,11 +26,29 @@ from backend.routers import (
     autopilot,
     analytics
 )
+from backend.autopilot import run_fastapi_autopilot_scheduler
+
+_scheduler_stop_event = threading.Event()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler_thread = threading.Thread(
+        target=run_fastapi_autopilot_scheduler,
+        args=(_scheduler_stop_event,),
+        daemon=True,
+        name="FastAPIAutopilotScheduler"
+    )
+    scheduler_thread.start()
+    yield
+    _scheduler_stop_event.set()
+
 
 app = FastAPI(
     title="SyntaxClipper API",
-    description="Autonomous Video Clipping and WoopSocial Scheduling Engine by Syntax Nepal",
-    version="1.0.0"
+    description="Autonomous Video Clipping and Multi-Platform Publishing Engine by Syntax Nepal",
+    version="1.4.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -70,7 +90,7 @@ def health():
         "status": "online",
         "app": "SyntaxClipper",
         "brand": "SyntaxClipper by Syntax Nepal",
-        "version": "1.0.0"
+        "version": "1.4.0"
     }
 
 

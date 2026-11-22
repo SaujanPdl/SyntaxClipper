@@ -110,6 +110,9 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
       if (cfg.youtube_api_key) setYtApiKey(cfg.youtube_api_key);
       if (cfg.youtube_default_privacy) setYtPrivacy(cfg.youtube_default_privacy);
       if (cfg.selected_social_accounts) setSelectedAccounts(cfg.selected_social_accounts);
+      if (cfg.zernio_accounts && Array.isArray(cfg.zernio_accounts) && cfg.zernio_accounts.length > 0) {
+        setConnectedAccounts(cfg.zernio_accounts);
+      }
 
       const prefs = cfg.preferences || {};
       if (prefs.target_platforms) setTargetPlatforms(prefs.target_platforms);
@@ -256,7 +259,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
   const handleComplete = async () => {
     setLoading(true);
     try {
-      await updateConfig({
+      const updatedPayload = {
         first_run_completed: true,
         publishing_mode: publishingMode,
         zernio_api_key: zernioKey.trim(),
@@ -274,7 +277,11 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
           game_mode_pause_enabled: gameModePause,
           target_platforms: targetPlatforms,
         }
-      });
+      };
+      await updateConfig(updatedPayload);
+      try {
+        localStorage.setItem('syntaxclipper_config_cache', JSON.stringify(updatedPayload));
+      } catch {}
       onCompleted();
       onClose();
     } catch (e: any) {
@@ -301,7 +308,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                   Publishing Providers & Connected Accounts Wizard
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#191D26] text-slate-300 border border-[#242936]">
-                  v1.3.0
+                  v1.4.0
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
