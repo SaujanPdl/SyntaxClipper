@@ -46,7 +46,7 @@ export default function AutopilotAnalyticsView() {
   const [loading, setLoading] = useState<boolean>(true);
   const [toggling, setToggling] = useState<boolean>(false);
   const [taskToggling, setTaskToggling] = useState<boolean>(false);
-  const [taskMsg, setTaskMsg] = useState<string>('');
+  const [taskFeedback, setTaskFeedback] = useState<{ success: boolean; message: string } | null>(null);
   const [generatingReport, setGeneratingReport] = useState<boolean>(false);
   const [reportResult, setReportResult] = useState<any>(null);
 
@@ -118,18 +118,35 @@ export default function AutopilotAnalyticsView() {
 
   const handleToggleTask = async () => {
     setTaskToggling(true);
-    setTaskMsg('');
+    setTaskFeedback(null);
     try {
       if (autopilot?.task_installed) {
         const res = await uninstallAutopilotTask();
-        setTaskMsg(res.message || 'Scheduled task unregistered.');
+        const isSuccess = res?.success !== false;
+        setTaskFeedback({
+          success: isSuccess,
+          message: res?.message || (isSuccess ? 'Scheduled task unregistered successfully.' : 'Failed to unregister scheduled task.')
+        });
+        if (isSuccess) {
+          setAutopilot((prev: any) => ({ ...prev, task_installed: false }));
+        }
       } else {
         const res = await installAutopilotTask();
-        setTaskMsg(res.message || 'Scheduled task registered with Laptop-Off Catch-Up.');
+        const isSuccess = res?.success === true;
+        setTaskFeedback({
+          success: isSuccess,
+          message: res?.message || (isSuccess ? 'Scheduled task registered with Laptop-Off Catch-Up.' : 'Task registration failed.')
+        });
+        if (isSuccess) {
+          setAutopilot((prev: any) => ({ ...prev, task_installed: true }));
+        }
       }
       await loadStatusAndLogs();
     } catch (e: any) {
-      setTaskMsg(e.message || 'Failed to update scheduled task');
+      setTaskFeedback({
+        success: false,
+        message: e?.message || 'Failed to update scheduled task.'
+      });
     } finally {
       setTaskToggling(false);
     }
@@ -415,13 +432,13 @@ export default function AutopilotAnalyticsView() {
                 Windows Scheduled Task (Laptop-Off Catch-Up)
               </h3>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold transition-colors ${
                   autopilot?.task_installed
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : 'bg-[#191D26] text-slate-400 border border-[#242936]'
                 }`}
               >
-                {autopilot?.task_installed ? 'REGISTERED (ENABLED)' : 'NOT REGISTERED'}
+                {autopilot?.task_installed ? 'REGISTERED' : 'NOT REGISTERED'}
               </span>
             </div>
             <p className="text-xs text-slate-400">
@@ -447,10 +464,29 @@ export default function AutopilotAnalyticsView() {
           </button>
         </div>
 
-        {taskMsg && (
-          <div className="p-2.5 rounded bg-[#0B0D11] border border-[#242936] text-xs font-mono text-emerald-400 flex items-center gap-2">
-            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-            <span>{taskMsg}</span>
+        {taskFeedback && (
+          <div
+            className={`p-2.5 rounded-lg border text-xs font-mono flex items-center justify-between gap-2 transition-all ${
+              taskFeedback.success
+                ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300'
+                : 'bg-red-950/40 border-red-500/50 text-red-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {taskFeedback.success ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+              )}
+              <span>{taskFeedback.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTaskFeedback(null)}
+              className="text-slate-400 hover:text-white text-xs px-1"
+            >
+              ✕
+            </button>
           </div>
         )}
       </div>

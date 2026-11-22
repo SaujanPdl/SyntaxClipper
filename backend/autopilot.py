@@ -184,7 +184,7 @@ def read_status_file() -> Dict[str, Any]:
 # ==============================================================================
 
 def install_windows_task() -> Dict[str, Any]:
-    """Registers Windows Scheduled Task 'SyntaxClipperAutopilot' using schtasks."""
+    """Registers Windows Scheduled Task 'SyntaxClipperAutopilot' with Interactive Principal and Catch-Up."""
     if sys.platform != "win32":
         return {"success": False, "message": "Windows Scheduled Tasks are only supported on Windows"}
 
@@ -195,23 +195,49 @@ def install_windows_task() -> Dict[str, Any]:
         pythonw = Path(sys.executable)
 
     script_path = ROOT_DIR / "backend" / "autopilot.py"
-    task_run = f'"{pythonw}" "{script_path}" --loop'
+    work_dir = str(ROOT_DIR)
 
-    cmd = [
-        "schtasks", "/create",
-        "/tn", "SyntaxClipperAutopilot",
-        "/tr", task_run,
-        "/sc", "hourly",
-        "/f"
-    ]
+    ps_cmd = f"""
+    $userId = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    if (-not $userId) {{ $userId = "$env:USERDOMAIN\\$env:USERNAME" }}
+    $action = New-ScheduledTaskAction -Execute '{str(pythonw)}' -Argument '"{str(script_path)}" --loop' -WorkingDirectory '{work_dir}'
+    $principal = New-ScheduledTaskPrincipal -UserId $userId -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 2) -MultipleInstances IgnoreNew
+    $triggers = @(
+        (New-ScheduledTaskTrigger -AtLogOn -User $userId),
+        (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 30))
+    )
+    Register-ScheduledTask -TaskName 'SyntaxClipperAutopilot' -Action $action -Trigger $triggers -Principal $principal -Settings $settings -Force
+    """
 
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        res = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+            capture_output=True,
+            text=True,
+            creationflags=SUBPROCESS_FLAGS
+        )
         if res.returncode == 0:
-            log_event("Windows Scheduled Task 'SyntaxClipperAutopilot' registered successfully.")
+            log_event("Windows Scheduled Task 'SyntaxClipperAutopilot' registered successfully (StartWhenAvailable=True).")
+            return {"success": True, "message": "Scheduled task registered with Laptop-Off Catch-Up enabled."}
+
+        # Fallback to schtasks /create if PowerShell Register-ScheduledTask returns non-zero
+        task_run = f'"{pythonw}" "{script_path}" --loop'
+        fallback_cmd = [
+            "schtasks", "/create",
+            "/tn", "SyntaxClipperAutopilot",
+            "/tr", task_run,
+            "/sc", "minute",
+            "/mo", "30",
+            "/f"
+        ]
+        fallback_res = subprocess.run(fallback_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        if fallback_res.returncode == 0:
+            log_event("Windows Scheduled Task 'SyntaxClipperAutopilot' registered via schtasks fallback.")
             return {"success": True, "message": "Scheduled task registered with Laptop-Off Catch-Up enabled."}
         else:
-            return {"success": False, "message": f"Task registration failed: {res.stderr[:200] or res.stdout[:200]}"}
+            err = res.stderr.strip() or fallback_res.stderr.strip() or "Task registration failed"
+            return {"success": False, "message": f"Task registration failed: {err[:200]}"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
