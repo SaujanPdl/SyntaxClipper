@@ -32,6 +32,7 @@ from backend.config import (
     save_config,
     is_api_key_configured
 )
+import backend.bin_resolver
 from backend.database import get_next_round_robin_target, get_creators, get_games
 from backend.services.woopsocial_client import (
     verify_connection,

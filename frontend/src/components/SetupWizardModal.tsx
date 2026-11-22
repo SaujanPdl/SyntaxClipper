@@ -23,11 +23,13 @@ import {
   Info,
   Youtube,
   Globe,
+  Download,
   X
 } from 'lucide-react';
 import {
   getSystemCheck,
   installMissingTools,
+  installMissingBinaries,
   verifyWoopSocial,
   verifyZernio,
   getYouTubeStatus,
@@ -51,6 +53,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
   // Step 1: System
   const [systemData, setSystemData] = useState<any>(null);
   const [installing, setInstalling] = useState<boolean>(false);
+  const [installingBinaries, setInstallingBinaries] = useState<boolean>(false);
 
   // Step 2: Multi-Provider Mode
   const [publishingMode, setPublishingMode] = useState<string>('hybrid'); // 'hybrid' | 'zernio' | 'woopsocial' | 'youtube_direct' | 'local_only'
@@ -147,6 +150,23 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
       setErrorMsg(e.message || 'Failed to install missing tools');
     } finally {
       setInstalling(false);
+    }
+  };
+
+  const handleInstallBinaries = async () => {
+    setInstallingBinaries(true);
+    setErrorMsg('');
+    try {
+      const res = await installMissingBinaries();
+      if (res?.system) {
+        setSystemData(res.system);
+      } else {
+        await runDiagnostics();
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || 'Failed to auto-install missing binaries');
+    } finally {
+      setInstallingBinaries(false);
     }
   };
 
@@ -262,7 +282,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                   Publishing Providers & Connected Accounts Wizard
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#191D26] text-slate-300 border border-[#242936]">
-                  v1.0
+                  v1.1
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -271,13 +291,13 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 shrink-0">
             {/* Steps Indicator */}
-            <div className="flex items-center space-x-1.5 bg-[#191D26] p-1 rounded-lg border border-[#242936]">
+            <div className="flex items-center space-x-1.5 bg-[#191D26] p-1 rounded-lg border border-[#242936] shrink-0">
               {[1, 2, 3].map((s) => (
                 <div
                   key={s}
-                  className={`h-6 px-2.5 rounded text-[11px] font-mono font-medium flex items-center justify-center transition-colors ${
+                  className={`h-6 px-2.5 rounded text-[11px] font-mono font-medium flex items-center justify-center whitespace-nowrap shrink-0 transition-colors ${
                     step === s
                       ? 'bg-emerald-500 text-slate-950 font-bold'
                       : step > s
@@ -293,7 +313,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#191D26] border border-transparent hover:border-[#242936] transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#191D26] border border-transparent hover:border-[#242936] transition-colors shrink-0"
               title="Close and enter workspace"
             >
               <X className="w-5 h-5" />
@@ -330,7 +350,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                     </span>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {['ffmpeg', 'ffprobe', 'yt_dlp'].map((binKey) => {
-                        const bin = systemData?.binaries?.[binKey];
+                        const bin = systemData?.binaries?.[binKey] || systemData?.tools?.[binKey];
                         const isInstalled = bin?.installed;
                         return (
                           <div
@@ -355,6 +375,40 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                       })}
                     </div>
                   </div>
+
+                  {/* 1-Click Binary Auto-Install Banner if any binary is missing */}
+                  {systemData && (!systemData?.binaries_ok || !['ffmpeg', 'ffprobe', 'yt_dlp'].every(k => (systemData?.binaries?.[k] || systemData?.tools?.[k])?.installed)) && (
+                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start space-x-2.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-semibold text-white">
+                            Missing Video Processing Binaries
+                          </div>
+                          <div className="text-[11px] text-amber-200/70">
+                            SyntaxClipper needs ffmpeg, ffprobe, and yt-dlp to cut and render clips locally.
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleInstallBinaries}
+                        disabled={installingBinaries}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-semibold text-xs flex items-center justify-center space-x-1.5 transition-colors shrink-0 disabled:opacity-50"
+                      >
+                        {installingBinaries ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Downloading & Configuring...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-3.5 h-3.5" />
+                            <span>1-Click Auto-Install Missing Tools</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Python Packages Group */}
                   <div className="space-y-2">
@@ -392,7 +446,7 @@ export default function SetupWizardModal({ isOpen, onClose, onCompleted }: Setup
                       <span>Available Workspace Storage:</span>
                     </div>
                     <span className="text-xs font-mono font-bold text-white">
-                      {systemData?.storage?.free_gb ?? '150+'} GB free
+                      {systemData?.storage?.free_gb ?? systemData?.disk?.free_gb ?? '150+'} GB free
                     </span>
                   </div>
                 </div>

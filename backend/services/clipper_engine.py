@@ -26,6 +26,7 @@ except ImportError:
     cv2 = None
 
 from backend.config import ROOT_DIR, QUEUE_READY, QUEUE_UPLOADED, LOGS_DIR, EXPORTS_DIR
+from backend.bin_resolver import resolve_binary, get_binary_path_or_name
 from backend.game_detector import detect_game_and_performance_state, get_optimized_ffmpeg_flags
 
 SUBPROCESS_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0

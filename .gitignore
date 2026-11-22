@@ -12,6 +12,8 @@ backup_config/
 *.key
 
 # Media, Queues & Logs
+backend/bin/
+*.exe
 queue/
 temp_clipper/
 exports/

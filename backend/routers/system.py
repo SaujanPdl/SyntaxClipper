@@ -3,7 +3,11 @@ Branded for SyntaxClipper by Syntax Nepal.
 """
 
 from fastapi import APIRouter
-from backend.services.system_checker import run_system_check, auto_install_missing_packages
+from backend.services.system_checker import (
+    run_system_check,
+    auto_install_missing_packages,
+    auto_install_missing_binaries
+)
 from backend.updater import check_for_updates, apply_update_and_restart, get_local_version_info
 
 router = APIRouter(prefix="/api/system", tags=["system"])
@@ -17,6 +21,12 @@ def get_system_status():
 @router.post("/install-missing")
 def install_missing():
     return auto_install_missing_packages()
+
+
+@router.post("/install-binaries")
+def install_binaries():
+    """1-Click auto-install for ffmpeg, ffprobe, and yt-dlp."""
+    return auto_install_missing_binaries()
 
 
 @router.get("/version")
