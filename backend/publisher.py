@@ -10,17 +10,114 @@ Reads config.json dynamically on every publish call to avoid stale API keys and 
 """
 
 import os
+import time
+import json
 import shutil
 import logging
+import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from backend.config import ROOT_DIR, EXPORTS_DIR, YOUTUBE_TOKEN_PATH, get_config
+from backend.config import ROOT_DIR, EXPORTS_DIR, QUEUE_READY, QUEUE_UPLOADED, YOUTUBE_TOKEN_PATH, get_config
 from backend.youtube_publisher import schedule_youtube_short
 from backend.services.zernio_client import create_zernio_post
 from backend.services.woopsocial_client import upload_media_session, create_or_schedule_post
 
 logger = logging.getLogger("syntaxclipper.publisher")
+
+POSTED_LOG = ROOT_DIR / "posted_log.json"
+
+
+def load_failed_posts() -> List[Dict[str, Any]]:
+    """Loads failed posts logged in posted_log.json."""
+    if not POSTED_LOG.exists():
+        return []
+    try:
+        with open(POSTED_LOG, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("failed_posts", []) if isinstance(data, dict) else []
+    except Exception as e:
+        logger.warning(f"Could not read {POSTED_LOG}: {e}")
+        return []
+
+
+def save_failed_posts(failed_posts: List[Dict[str, Any]]) -> None:
+    """Saves failed posts list to posted_log.json."""
+    current_data = {}
+    if POSTED_LOG.exists():
+        try:
+            with open(POSTED_LOG, "r", encoding="utf-8") as f:
+                current_data = json.load(f)
+                if not isinstance(current_data, dict):
+                    current_data = {}
+        except Exception:
+            current_data = {}
+    current_data["failed_posts"] = failed_posts
+    tmp_path = POSTED_LOG.with_suffix(".tmp")
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(current_data, f, indent=2)
+        tmp_path.replace(POSTED_LOG)
+    except Exception as e:
+        logger.error(f"Failed to persist {POSTED_LOG}: {e}")
+
+
+def record_failed_post(
+    clip_path: Path,
+    title: str,
+    captions: Dict[str, str],
+    target_platforms: List[str],
+    creator_name: str,
+    scheduled_iso: Optional[str],
+    error_message: str,
+    provider: str
+) -> Dict[str, Any]:
+    """Records an exact failure diagnosis into posted_log.json for Queue and 1-Click Retry."""
+    failed_id = f"failed_{int(time.time())}_{clip_path.stem}"
+    record = {
+        "id": failed_id,
+        "postId": failed_id,
+        "socialAccountPostId": failed_id,
+        "title": title,
+        "description": captions.get("tiktok") or captions.get("youtube_desc") or title,
+        "clip_path": str(clip_path.resolve()),
+        "clip_name": clip_path.name,
+        "target_platforms": target_platforms,
+        "creator_name": creator_name,
+        "captions": captions,
+        "scheduled_iso": scheduled_iso,
+        "platform": ", ".join(p.upper() for p in target_platforms if p != "local") or "MULTI-PLATFORM",
+        "provider": provider,
+        "provider_name": "YouTube Studio Scheduled" if provider == "youtube_direct" else ("Zernio Cloud" if provider == "zernio" else "Hybrid Pro"),
+        "deliveryStatus": "FAILED",
+        "errorMessage": error_message,
+        "error": error_message,
+        "failedReason": error_message,
+        "createdAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "scheduledFor": scheduled_iso,
+        "content": [
+            {
+                "text": captions.get("tiktok") or captions.get("youtube_desc") or title,
+                "media": []
+            }
+        ]
+    }
+    posts = load_failed_posts()
+    # Keep up to 50 failed records, replace if matching same clip_name
+    posts = [p for p in posts if p.get("clip_name") != clip_path.name]
+    posts.insert(0, record)
+    save_failed_posts(posts[:50])
+    return record
+
+
+def clear_failed_post(post_id: str) -> bool:
+    """Removes a failed post from posted_log.json once successfully retried or deleted."""
+    posts = load_failed_posts()
+    filtered = [p for p in posts if p.get("id") != post_id and p.get("postId") != post_id and p.get("socialAccountPostId") != post_id]
+    if len(filtered) != len(posts):
+        save_failed_posts(filtered)
+        return True
+    return False
 
 
 def save_local_export(
@@ -302,13 +399,28 @@ def publish_clip(
             except Exception as e:
                 results["errors"].append(f"WoopSocial: {str(e)}")
 
-    # Check overall success: if no remote platforms succeeded and errors occurred, save safe local copy
-    if not results["platform_results"] and results["errors"]:
-        results["success"] = False
+    # Check overall success: if errors occurred, log to failed_posts for 1-click retry
+    if results["errors"]:
+        if not results["platform_results"]:
+            results["success"] = False
+            try:
+                results["platform_results"]["local"] = save_local_export(clip_path, title, creator_name, captions)
+                results["local_fallback"] = True
+            except Exception:
+                pass
+        # Record exact failure diagnostics in posted_log.json for Queue & 1-Click Retry
         try:
-            results["platform_results"]["local"] = save_local_export(clip_path, title, creator_name, captions)
-            results["local_fallback"] = True
-        except Exception:
-            pass
+            record_failed_post(
+                clip_path=clip_path,
+                title=title,
+                captions=captions,
+                target_platforms=target_platforms,
+                creator_name=creator_name,
+                scheduled_iso=scheduled_iso,
+                error_message="; ".join(results["errors"]),
+                provider=mode
+            )
+        except Exception as log_err:
+            logger.warning(f"Failed to record failed post diagnostics: {log_err}")
 
     return results

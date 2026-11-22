@@ -321,9 +321,9 @@ export default function Home() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header Telemetry Bar */}
-        <header className="h-14 bg-[#12151C] border-b border-[#242936] px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
+        <header className="h-14 bg-[#12151C] border-b border-[#242936] px-4 sm:px-6 flex items-center justify-between gap-3 shrink-0 min-w-0">
+          <div className="flex items-center space-x-3 min-w-0 flex-1 overflow-hidden">
+            <h1 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300 truncate">
               {activeTab === 'manual' && 'Interactive Manual URL Studio & Visual Crop'}
               {activeTab === 'studio' && 'Ready Clips Studio • Pro Inspector'}
               {activeTab === 'exports' && 'Local Video Exports & Social Dispatch'}
@@ -345,7 +345,7 @@ export default function Home() {
           </div>
 
           {/* System Telemetry Badges */}
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-2 shrink-0">
             {/* YouTube Quota */}
             <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded bg-[#191D26] border border-[#242936] text-[11px] font-mono">
               <span className="text-slate-400">YT:</span>
@@ -374,9 +374,9 @@ export default function Home() {
             </div>
 
             {/* 3-Tier Performance & Game-Mode Telemetry Pill */}
-            <div className="flex items-center space-x-2 px-3 py-1 rounded bg-[#191D26] border border-[#242936] text-[11px] font-mono">
+            <div className="flex items-center space-x-2 px-2.5 py-1 rounded bg-[#191D26] border border-[#242936] text-[11px] font-mono shrink-0 max-w-[190px] sm:max-w-none">
               <span
-                className={`w-2 h-2 rounded-full ${
+                className={`w-2 h-2 rounded-full shrink-0 ${
                   autopilotStatus?.performance_mode === 'game_paused'
                     ? 'bg-amber-400 animate-ping'
                     : autopilotStatus?.performance_mode === 'turbo'
@@ -384,13 +384,23 @@ export default function Home() {
                     : 'bg-emerald-400'
                 }`}
               />
-              <span className="text-slate-300 font-medium">
+              <span
+                className="text-slate-300 font-medium truncate max-w-[120px] sm:max-w-[200px] md:max-w-none"
+                title={
+                  autopilotStatus?.performance_label ||
+                  (autopilotStatus?.detected_game
+                    ? `Paused (${autopilotStatus.detected_game})`
+                    : autopilotStatus?.is_running
+                    ? 'Autopilot Active (Eco)'
+                    : 'Eco Mode (Active Desktop Use)')
+                }
+              >
                 {autopilotStatus?.performance_label ||
                   (autopilotStatus?.detected_game
                     ? `Paused (${autopilotStatus.detected_game})`
                     : autopilotStatus?.is_running
                     ? 'Autopilot Active (Eco)'
-                    : 'Eco Mode (Active)')}
+                    : 'Eco Mode (Active Desktop Use)')}
               </span>
               <HelpTooltip text="Eco mode limits CPU usage during work or gaming; Turbo uses all available CPU/GPU cores for fastest renders." />
             </div>

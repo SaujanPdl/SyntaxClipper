@@ -121,7 +121,9 @@ export default function QueueCalendarView({ onOpenWizard }: QueueCalendarViewPro
               onClick={() => setFilter(tab)}
               className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors ${
                 filter === tab
-                  ? 'bg-emerald-500 text-slate-950 font-bold'
+                  ? tab === 'FAILED'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/50 font-bold'
+                    : 'bg-emerald-500 text-slate-950 font-bold'
                   : 'bg-[#0E1015] text-slate-400 border border-[#262B38] hover:text-white'
               }`}
             >
@@ -265,10 +267,15 @@ export default function QueueCalendarView({ onOpenWizard }: QueueCalendarViewPro
                       </p>
 
                       {/* Error details if failed */}
-                      {status === 'FAILED' && p.errorMessage && (
-                        <div className="mt-2 p-2 rounded bg-red-950/40 border border-red-800/40 text-[11px] text-red-300 font-mono flex items-start space-x-2">
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
-                          <span>Error: {p.errorMessage}</span>
+                      {status === 'FAILED' && (
+                        <div className="mt-2.5 p-3 rounded-lg bg-red-950/40 border border-red-800/40 text-xs font-mono text-red-200 flex items-start space-x-2.5">
+                          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-semibold text-red-300">Failure Reason: </span>
+                            <span className="text-red-200">
+                              {p.errorMessage || p.error || p.failedReason || p.message || 'API delivery failure. Verify credentials and quota.'}
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -278,12 +285,12 @@ export default function QueueCalendarView({ onOpenWizard }: QueueCalendarViewPro
                   <div className="flex items-center space-x-2 shrink-0">
                     {status === 'FAILED' && (
                       <button
-                        onClick={() => handleRetry(p.socialAccountPostId || p.postId)}
-                        disabled={retryingId === (p.socialAccountPostId || p.postId)}
-                        className="py-1.5 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold flex items-center space-x-1.5 transition-colors disabled:opacity-50"
+                        onClick={() => handleRetry(p.socialAccountPostId || p.postId || p.id)}
+                        disabled={retryingId === (p.socialAccountPostId || p.postId || p.id)}
+                        className="py-1.5 px-3 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-semibold flex items-center space-x-1.5 transition-colors disabled:opacity-50 shadow-sm"
                       >
-                        <RotateCcw className={`w-3.5 h-3.5 ${retryingId === (p.socialAccountPostId || p.postId) ? 'animate-spin' : ''}`} />
-                        <span>Retry Failed</span>
+                        <RotateCcw className={`w-3.5 h-3.5 ${retryingId === (p.socialAccountPostId || p.postId || p.id) ? 'animate-spin' : ''}`} />
+                        <span>Retry Publish</span>
                       </button>
                     )}
 
