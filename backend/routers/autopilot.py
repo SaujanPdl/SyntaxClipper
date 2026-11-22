@@ -22,6 +22,10 @@ class ExceptionsRequest(BaseModel):
     never_pause_exes: Optional[List[str]] = None
 
 
+class AutopilotToggleRequest(BaseModel):
+    enabled: bool
+
+
 @router.get("/status")
 def get_autopilot_status():
     status_data = autopilot_service.get_status()
@@ -42,9 +46,48 @@ def get_autopilot_status():
     elif not status_data.get("is_running"):
         status_data["current_action"] = perf["label"]
 
-    status_data["task_installed"] = is_windows_task_installed()
+    cfg = get_config()
+    task_installed = is_windows_task_installed()
+    autopilot_enabled = bool(cfg.get("autopilot_enabled", False))
+    if "autopilot_enabled" not in cfg:
+        autopilot_enabled = bool(status_data.get("is_running", False))
+
+    status_data["autopilot_enabled"] = autopilot_enabled
+    status_data["task_installed"] = task_installed
+    status_data["task_registered"] = task_installed
     status_data["quotas"] = get_platform_quota_usage()
     return status_data
+
+
+@router.post("/toggle")
+def toggle_autopilot_endpoint(req: AutopilotToggleRequest):
+    """Toggles autopilot on/off: persists to config.json and syncs Windows Task Scheduler."""
+    save_config({"autopilot_enabled": req.enabled})
+
+    if req.enabled:
+        task_res = install_windows_task()
+        loop_res = autopilot_service.start()
+        task_registered = is_windows_task_installed()
+        return {
+            "success": True,
+            "autopilot_enabled": True,
+            "task_registered": task_registered,
+            "message": "Autopilot Activated (Background Scheduler Running)",
+            "task_result": task_res,
+            "service_result": loop_res
+        }
+    else:
+        task_res = uninstall_windows_task()
+        loop_res = autopilot_service.stop()
+        task_registered = is_windows_task_installed()
+        return {
+            "success": True,
+            "autopilot_enabled": False,
+            "task_registered": task_registered,
+            "message": "Autopilot Paused",
+            "task_result": task_res,
+            "service_result": loop_res
+        }
 
 
 @router.get("/performance")
@@ -67,11 +110,15 @@ def update_game_exceptions(req: ExceptionsRequest):
 
 @router.post("/start")
 def start_autopilot():
+    save_config({"autopilot_enabled": True})
+    install_windows_task()
     return autopilot_service.start()
 
 
 @router.post("/stop")
 def stop_autopilot():
+    save_config({"autopilot_enabled": False})
+    uninstall_windows_task()
     return autopilot_service.stop()
 
 

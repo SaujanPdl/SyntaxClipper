@@ -19,7 +19,8 @@ try:
 except ImportError:
     psutil = None
 
-from backend.config import ROOT_DIR, LOGS_DIR, QUEUE_READY, QUEUE_UPLOADED, get_config, save_config
+from backend.config import ROOT_DIR, LOGS_DIR, QUEUE_READY, QUEUE_UPLOADED, get_config, save_config, is_api_key_configured
+from backend.publisher import publish_clip
 from backend.database import get_next_round_robin_target, get_creators, get_games
 from backend.services.woopsocial_client import (
     verify_connection,
@@ -111,10 +112,6 @@ class AutopilotService:
 
     def start(self) -> Dict[str, Any]:
         """Starts the background watchdog thread."""
-        cfg = get_config()
-        if not cfg.get("woopsocial_api_key"):
-            return {"success": False, "message": "WoopSocial API Key not configured. Please complete the Setup Wizard first."}
-
         if self._is_running:
             return {"success": True, "message": "Autopilot is already running."}
 
@@ -145,6 +142,13 @@ class AutopilotService:
             cfg = get_config()
             pref = cfg.get("preferences", {})
 
+            # 0. User Pause Check
+            if not cfg.get("autopilot_enabled", True):
+                self._status = "PAUSED"
+                self._current_action = "Autopilot Paused in dashboard"
+                time.sleep(2)
+                continue
+
             # 1. Game-Mode Pause Protection
             if pref.get("game_mode_pause_enabled", True):
                 game = self.check_game_mode()
@@ -158,27 +162,26 @@ class AutopilotService:
                 else:
                     self._detected_game = None
 
-            # 2. API Key Check
-            api_key = cfg.get("woopsocial_api_key", "").strip()
-            if not api_key:
+            # 2. API / Provider Key Check
+            if not is_api_key_configured():
                 self._status = "WAITING_CONFIG"
-                self._current_action = "Awaiting WoopSocial API Key setup in Wizard..."
-                time.sleep(5)
+                self._current_action = "Awaiting Publishing setup (Zernio, YouTube Direct, or Local Mode)..."
+                for _ in range(5):
+                    if self._stop_event.is_set():
+                        break
+                    time.sleep(1)
                 continue
 
-            # 3. Connectivity Check
-            if not self.check_internet():
+            # 3. Connectivity Check (skip if local only)
+            mode = cfg.get("publishing_mode", "hybrid")
+            if mode != "local_only" and not self.check_internet():
                 self._current_action = "Waiting for internet connectivity..."
                 time.sleep(10)
                 continue
 
-            # 3. Check Ready Queue for Upload & Scheduling
-            api_key = cfg.get("woopsocial_api_key", "")
-            project_id = cfg.get("selected_project_id", "")
-            target_accounts = cfg.get("selected_social_accounts", [])
-
+            # 4. Check Ready Queue for Multi-Platform Upload & Scheduling
             ready_clips = list(QUEUE_READY.glob("*.mp4"))
-            if ready_clips and api_key and project_id and target_accounts:
+            if ready_clips:
                 clip_file = ready_clips[0]
                 meta_file = clip_file.with_suffix(".json")
                 meta = {}
@@ -189,41 +192,38 @@ class AutopilotService:
                     except Exception:
                         pass
 
-                self._current_action = f"Uploading {clip_file.name} to WoopSocial..."
-                self.log(f"Starting WoopSocial upload for {clip_file.name}")
+                self._current_action = f"Publishing {clip_file.name}..."
+                self.log(f"Starting publish dispatch for {clip_file.name}")
                 try:
-                    media_id = upload_media_session(api_key, project_id, clip_file)
-                    self.log(f"Uploaded {clip_file.name} -> mediaId: {media_id}")
-
-                    # Calculate schedule time
                     now_utc = datetime.datetime.now(datetime.timezone.utc)
                     hours_between = pref.get("posting_interval_hours", 2)
                     sched_time = (now_utc + datetime.timedelta(hours=hours_between)).isoformat().replace("+00:00", "Z")
 
-                    title = meta.get("title", "High-Energy Gameplay Clip")
-                    creator = meta.get("creator", "Creator")
+                    title = meta.get("title", "High-Energy Gameplay Moment")
+                    creator = meta.get("creator", "Live Streamer")
                     desc = f"{title}\n\nCreator: {creator}\n#Shorts"
 
-                    accounts_data = [{"id": acc_id} for acc_id in target_accounts]
-                    post_res = create_or_schedule_post(
-                        api_key=api_key,
-                        project_id=project_id,
-                        media_id=media_id,
+                    target_plats = pref.get("target_platforms") or ["youtube", "tiktok", "instagram"]
+                    pub_res = publish_clip(
+                        clip_path=clip_file,
                         title=title,
-                        yt_description=desc,
-                        tiktok_caption=desc,
-                        account_targets=accounts_data,
+                        captions={
+                            "youtube_desc": desc,
+                            "tiktok": f"{title} 🔥 #shorts #gaming #viral",
+                            "instagram": f"{title} 🔥 #reels #gaming"
+                        },
+                        target_platforms=target_plats,
+                        creator_name=creator,
                         scheduled_iso=sched_time
                     )
-                    self.log(f"Successfully scheduled post {post_res.get('id', 'OK')} for {sched_time}")
+                    self.log(f"Autopilot publish dispatched: {pub_res.get('platform_results')}")
 
                     # Auto-delete if preference enabled
                     if pref.get("auto_delete_local_clips", True):
                         clip_file.unlink(missing_ok=True)
                         meta_file.unlink(missing_ok=True)
-                        self.log(f"[Storage] Auto-deleted local clip {clip_file.name} after scheduling.")
+                        self.log(f"[Storage] Auto-deleted local clip {clip_file.name} upon confirmation.")
                     else:
-                        # Move to uploaded archive
                         shutil.move(str(clip_file), str(QUEUE_UPLOADED / clip_file.name))
                         if meta_file.exists():
                             shutil.move(str(meta_file), str(QUEUE_UPLOADED / meta_file.name))
@@ -231,7 +231,7 @@ class AutopilotService:
                 except Exception as e:
                     self.log(f"Scheduling error: {e}")
 
-            # 4. Check Buffer and Generate Clips if low
+            # 5. Check Buffer and Generate Clips if low
             ready_count = len(list(QUEUE_READY.glob("*.mp4")))
             if ready_count < 2:
                 # Need buffer replenishment via round-robin

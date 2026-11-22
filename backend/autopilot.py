@@ -184,7 +184,7 @@ def read_status_file() -> Dict[str, Any]:
 # ==============================================================================
 
 def install_windows_task() -> Dict[str, Any]:
-    """Registers Windows Scheduled Task 'SyntaxClipperAutopilot' with StartWhenAvailable=True."""
+    """Registers Windows Scheduled Task 'SyntaxClipperAutopilot' using schtasks."""
     if sys.platform != "win32":
         return {"success": False, "message": "Windows Scheduled Tasks are only supported on Windows"}
 
@@ -195,29 +195,23 @@ def install_windows_task() -> Dict[str, Any]:
         pythonw = Path(sys.executable)
 
     script_path = ROOT_DIR / "backend" / "autopilot.py"
-    work_dir = str(ROOT_DIR)
+    task_run = f'"{pythonw}" "{script_path}" --loop'
 
-    # PowerShell command creating scheduled task with StartWhenAvailable and repeat every 60 min
-    ps_cmd = f"""
-    $Action = New-ScheduledTaskAction -Execute '{str(pythonw)}' -Argument '"{str(script_path)}" --loop' -WorkingDirectory '{work_dir}'
-    $TriggerLogon = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-    $TriggerRepeat = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration ([TimeSpan]::MaxValue)
-    $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances Parallel
-    Register-ScheduledTask -TaskName 'SyntaxClipperAutopilot' -Action $Action -Trigger @($TriggerLogon, $TriggerRepeat) -Settings $Settings -Force
-    """
+    cmd = [
+        "schtasks", "/create",
+        "/tn", "SyntaxClipperAutopilot",
+        "/tr", task_run,
+        "/sc", "hourly",
+        "/f"
+    ]
 
     try:
-        res = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
-            capture_output=True,
-            text=True,
-            creationflags=SUBPROCESS_FLAGS
-        )
+        res = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         if res.returncode == 0:
-            log_event("Windows Scheduled Task 'SyntaxClipperAutopilot' registered successfully (StartWhenAvailable=True).")
+            log_event("Windows Scheduled Task 'SyntaxClipperAutopilot' registered successfully.")
             return {"success": True, "message": "Scheduled task registered with Laptop-Off Catch-Up enabled."}
         else:
-            return {"success": False, "message": f"Task registration failed: {res.stderr[:200]}"}
+            return {"success": False, "message": f"Task registration failed: {res.stderr[:200] or res.stdout[:200]}"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
@@ -228,7 +222,7 @@ def uninstall_windows_task() -> Dict[str, Any]:
         return {"success": False, "message": "Only supported on Windows"}
 
     try:
-        cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Unregister-ScheduledTask -TaskName 'SyntaxClipperAutopilot' -Confirm:$false -ErrorAction SilentlyContinue"]
+        cmd = ["schtasks", "/delete", "/tn", "SyntaxClipperAutopilot", "/f"]
         res = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         log_event("Windows Scheduled Task 'SyntaxClipperAutopilot' unregistered.")
         return {"success": True, "message": "Scheduled task unregistered successfully."}
@@ -257,14 +251,26 @@ def run_autopilot_cycle() -> Dict[str, Any]:
     cfg = get_config()
     pref = cfg.get("preferences", {})
 
+    # 0. User Autopilot Toggle Check
+    if not cfg.get("autopilot_enabled", True):
+        state = {
+            "is_running": False,
+            "status": "PAUSED",
+            "detected_game": None,
+            "current_action": "Autopilot Paused in dashboard",
+            "last_cycle_time": time.time(),
+            "task_installed": is_windows_task_installed()
+        }
+        update_status_file(state)
+        return state
+
     # 1. API Configuration Check
-    api_key = cfg.get("woopsocial_api_key", "").strip()
-    if not api_key:
+    if not is_api_key_configured():
         state = {
             "is_running": False,
             "status": "WAITING_CONFIG",
             "detected_game": None,
-            "current_action": "Awaiting WoopSocial API Key setup in Wizard",
+            "current_action": "Awaiting Publishing setup (Zernio, YouTube Direct, or Local Mode)",
             "last_cycle_time": time.time(),
             "task_installed": is_windows_task_installed()
         }

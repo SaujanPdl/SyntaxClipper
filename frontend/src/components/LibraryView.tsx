@@ -13,9 +13,11 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  AlertTriangle,
   FolderOpen,
   Share2,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import {
   getCreators,
@@ -28,7 +30,9 @@ import {
   deleteGame,
   toggleRoundRobin,
   loadStarterPresets,
-  getConfig
+  getConfig,
+  getAutopilotStatus,
+  toggleAutopilot
 } from '@/lib/api';
 
 export default function LibraryView() {
@@ -36,7 +40,9 @@ export default function LibraryView() {
   const [creators, setCreators] = useState<any[]>([]);
   const [games, setGames] = useState<any[]>([]);
   const [config, setConfig] = useState<any>(null);
-  const [roundRobin, setRoundRobin] = useState<boolean>(true);
+  const [autopilotEnabled, setAutopilotEnabled] = useState<boolean>(false);
+  const [isToggling, setIsToggling] = useState<boolean>(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Creator Modal
@@ -63,28 +69,62 @@ export default function LibraryView() {
     loadAll();
   }, []);
 
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [cRes, gRes, cfg] = await Promise.all([getCreators(), getGames(), getConfig()]);
-      setCreators(cRes.creators || []);
-      setGames(gRes.games || []);
+      const [cRes, gRes, cfg, autoStatus] = await Promise.all([
+        getCreators(),
+        getGames(),
+        getConfig(),
+        getAutopilotStatus().catch(() => null)
+      ]);
+      setCreators(cRes?.creators || []);
+      setGames(gRes?.games || []);
       setConfig(cfg);
-      setRoundRobin(cfg.preferences?.round_robin_enabled ?? true);
+      const isAuto = autoStatus?.autopilot_enabled ?? cfg?.autopilot_enabled ?? false;
+      setAutopilotEnabled(isAuto);
     } catch (e) {
-      console.error(e);
+      console.error('Error loading library data:', e);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleRoundRobin = async () => {
+  const handleToggleAutopilot = async () => {
+    if (isToggling) return;
+    const nextState = !autopilotEnabled;
+    const prevState = autopilotEnabled;
+    setAutopilotEnabled(nextState);
+    setIsToggling(true);
+    setToast(null);
+
     try {
-      const next = !roundRobin;
-      setRoundRobin(next);
-      await toggleRoundRobin(next);
-    } catch (e) {
-      console.error(e);
+      const res = await toggleAutopilot(nextState);
+      setToast({
+        type: 'success',
+        message: nextState
+          ? 'Autopilot Activated (Background Scheduler Running)'
+          : 'Autopilot Paused'
+      });
+      if (res && typeof res.autopilot_enabled === 'boolean') {
+        setAutopilotEnabled(res.autopilot_enabled);
+      }
+    } catch (e: any) {
+      console.error('Failed to toggle autopilot:', e);
+      setAutopilotEnabled(prevState);
+      setToast({
+        type: 'error',
+        message: e?.message || 'Failed to toggle Autopilot. Please check backend connection.'
+      });
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -282,6 +322,33 @@ export default function LibraryView() {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`p-3 rounded-lg border text-xs font-mono flex items-center justify-between transition-all ${
+            toast.type === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+              : 'bg-red-500/10 border-red-500/30 text-red-300'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            {toast.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            )}
+            <span>{toast.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-white ml-2 text-xs font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header with Round-Robin Status */}
       <div className="bg-[#12151C] border border-[#242936] rounded-xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -295,40 +362,52 @@ export default function LibraryView() {
 
         {/* Round-Robin Toggle Card */}
         <div
-          onClick={handleToggleRoundRobin}
-          className="bg-[#0B0D11] border border-[#242936] hover:border-slate-700 px-4 py-2.5 rounded-lg flex items-center space-x-3 cursor-pointer transition-colors"
+          onClick={handleToggleAutopilot}
+          className="bg-[#0B0D11] border border-[#242936] hover:border-slate-700 px-4 py-2.5 rounded-lg flex items-center space-x-3 cursor-pointer transition-colors select-none"
         >
           <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <RotateCw className={`w-4 h-4 ${roundRobin ? 'animate-spin-slow' : ''}`} />
+            <RotateCw className={`w-4 h-4 ${autopilotEnabled ? 'animate-spin-slow' : ''}`} />
           </div>
           <div>
             <div className="text-xs font-medium text-slate-200 flex items-center gap-2">
               <span>Balanced Round-Robin Autopilot</span>
               <span
-                className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
-                  roundRobin
+                className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold transition-colors ${
+                  autopilotEnabled
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-slate-800 text-slate-400'
+                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700/50'
                 }`}
               >
-                {roundRobin ? 'ACTIVE' : 'OFF'}
+                {autopilotEnabled ? 'ACTIVE' : 'PAUSED'}
               </span>
             </div>
             <div className="text-[10px] text-slate-500">
               Rotates evenly across enabled sources without repeating
             </div>
           </div>
-          <div
-            className={`w-9 h-4.5 rounded-full p-0.5 transition-colors ${
-              roundRobin ? 'bg-emerald-500' : 'bg-slate-700'
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autopilotEnabled}
+            disabled={isToggling}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggleAutopilot();
+            }}
+            className={`w-10 h-5 rounded-full p-0.5 transition-colors relative flex items-center cursor-pointer shrink-0 disabled:opacity-60 ${
+              autopilotEnabled ? 'bg-emerald-500' : 'bg-zinc-700'
             }`}
           >
             <div
-              className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${
-                roundRobin ? 'translate-x-4.5' : 'translate-x-0'
+              className={`w-4 h-4 rounded-full bg-white shadow-sm flex items-center justify-center transition-transform ${
+                autopilotEnabled ? 'translate-x-5' : 'translate-x-0'
               }`}
-            />
-          </div>
+            >
+              {isToggling && (
+                <Loader2 className="w-2.5 h-2.5 text-zinc-700 animate-spin" />
+              )}
+            </div>
+          </button>
         </div>
       </div>
 

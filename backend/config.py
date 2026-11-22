@@ -54,6 +54,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # Provider C: Local Only
     "local_export_enabled": True,
 
+    # Silent Background Autopilot State
+    "autopilot_enabled": False,
+
     "preferences": {
         "daily_post_limit": 10,
         "youtube_daily_cap": 10,

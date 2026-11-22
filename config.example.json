@@ -13,6 +13,7 @@
   "youtube_channel_info": null,
   "youtube_default_privacy": "private",
   "local_export_enabled": true,
+  "autopilot_enabled": false,
   "preferences": {
     "daily_post_limit": 10,
     "youtube_daily_cap": 10,
