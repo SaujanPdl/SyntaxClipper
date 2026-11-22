@@ -18,7 +18,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   Crosshair,
-  Heart
+  Heart,
+  Sparkles,
+  ArrowUpCircle,
+  RefreshCw
 } from 'lucide-react';
 import ManualStudioView from '@/components/ManualStudioView';
 import ClipStudioView from '@/components/ClipStudioView';
@@ -28,7 +31,8 @@ import QueueCalendarView from '@/components/QueueCalendarView';
 import AutopilotAnalyticsView from '@/components/AutopilotAnalyticsView';
 import UserGuideView from '@/components/UserGuideView';
 import SetupWizardModal from '@/components/SetupWizardModal';
-import { getConfig, getAutopilotStatus, getAnalyticsOverview } from '@/lib/api';
+import UpdateModal from '@/components/UpdateModal';
+import { getConfig, getAutopilotStatus, getAnalyticsOverview, checkUpdate } from '@/lib/api';
 
 type TabType = 'manual' | 'studio' | 'exports' | 'library' | 'queue' | 'autopilot' | 'guide';
 
@@ -38,12 +42,32 @@ export default function Home() {
   const [config, setConfig] = useState<any>(null);
   const [autopilotStatus, setAutopilotStatus] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [updateInfo, setUpdateInfo] = useState<any>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
+  const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
 
   useEffect(() => {
     checkFirstRun();
     const interval = setInterval(refreshHeaderStats, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleCheckUpdates = async (manual = false) => {
+    setCheckingUpdate(true);
+    try {
+      const info = await checkUpdate();
+      setUpdateInfo(info);
+      if (info.update_available) {
+        setShowUpdateModal(true);
+      } else if (manual) {
+        alert(`SyntaxClipper is up to date (v${info.current_version}).`);
+      }
+    } catch (e: any) {
+      if (manual) alert(`Failed to check updates: ${e.message}`);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   const checkFirstRun = async () => {
     try {
@@ -56,8 +80,12 @@ export default function Home() {
       setAutopilotStatus(auto);
       setAnalytics(an);
 
+      // Check for GitHub updates silently
+      handleCheckUpdates(false);
+
       // Auto pop-up wizard if not completed or missing API key
-      if (!cfg.first_run_completed || !cfg.woopsocial_api_key) {
+      const hasProvider = cfg.woopsocial_api_key || cfg.zernio_api_key || cfg.youtube_oauth_configured || cfg.publishing_mode === 'local_only';
+      if (!cfg.first_run_completed || !hasProvider) {
         setShowWizard(true);
       }
     } catch (e) {
@@ -243,6 +271,26 @@ export default function Home() {
             </p>
           </a>
 
+          {/* Check for Updates Button */}
+          <button
+            onClick={() => handleCheckUpdates(true)}
+            disabled={checkingUpdate}
+            className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#161922] border border-[#262B38] hover:border-slate-500 text-[11px] font-mono text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <div className="flex items-center space-x-1.5">
+              <RefreshCw className={`w-3 h-3 ${checkingUpdate ? 'animate-spin text-emerald-400' : 'text-slate-500'}`} />
+              <span>{checkingUpdate ? 'Checking GitHub...' : 'Check for Updates'}</span>
+            </div>
+            {updateInfo?.update_available ? (
+              <span className="flex items-center space-x-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                <span className="text-[10px] font-bold text-emerald-400">New!</span>
+              </span>
+            ) : (
+              <span className="text-[10px] text-slate-600">v1.1</span>
+            )}
+          </button>
+
           {/* Version & Badge Footer */}
           <div className="px-1 pt-0.5 flex items-center justify-between text-[10px] font-mono text-slate-500">
             <span>v1.1 • Syntax Nepal</span>
@@ -326,6 +374,27 @@ export default function Home() {
           </div>
         </header>
 
+        {/* Update Available Announcement Banner */}
+        {updateInfo?.update_available && (
+          <div className="bg-emerald-950/40 border-b border-emerald-800/40 px-6 py-2.5 flex items-center justify-between text-xs font-mono text-emerald-300 shrink-0">
+            <div className="flex items-center space-x-2.5">
+              <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
+              <span>
+                New SyntaxClipper update available: <strong className="text-white">{updateInfo.latest_version}</strong>. All local settings and keys are safely preserved.
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowUpdateModal(true)}
+                className="px-3.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-colors flex items-center space-x-1.5"
+              >
+                <ArrowUpCircle className="w-3.5 h-3.5" />
+                <span>Upgrade & Restart</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* View Container */}
         <main className={`flex-1 overflow-y-auto ${activeTab === 'manual' || activeTab === 'exports' ? 'p-0 flex flex-col' : 'p-6'}`}>
           {/* First Run Action Banner */}
@@ -358,6 +427,14 @@ export default function Home() {
           {activeTab === 'guide' && <UserGuideView />}
         </main>
       </div>
+
+      {/* Update Modal */}
+      {showUpdateModal && updateInfo && (
+        <UpdateModal
+          updateInfo={updateInfo}
+          onClose={() => setShowUpdateModal(false)}
+        />
+      )}
     </div>
   );
 }
