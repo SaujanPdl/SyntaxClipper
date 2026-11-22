@@ -18,6 +18,7 @@ from backend.routers import (
     config,
     woopsocial,
     providers,
+    queue,
     clips,
     library,
     autopilot,
@@ -43,6 +44,7 @@ app.include_router(system.router)
 app.include_router(config.router)
 app.include_router(woopsocial.router)
 app.include_router(providers.router)
+app.include_router(queue.router)
 app.include_router(clips.router)
 app.include_router(library.router)
 app.include_router(autopilot.router)

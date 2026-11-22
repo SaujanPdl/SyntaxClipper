@@ -173,7 +173,13 @@ export default function Home() {
               }`}
             >
               <Calendar className="w-4 h-4" />
-              <span>WoopSocial Queue</span>
+              <span>
+                {config?.zernio_api_key && !config?.woopsocial_api_key
+                  ? 'Zernio Queue'
+                  : config?.woopsocial_api_key && !config?.zernio_api_key
+                  ? 'WoopSocial Queue'
+                  : 'Publishing Queue'}
+              </span>
             </button>
 
             <button
@@ -258,7 +264,13 @@ export default function Home() {
               {activeTab === 'studio' && 'Ready Clips Studio • Pro Inspector'}
               {activeTab === 'exports' && 'Local Video Exports & Social Dispatch'}
               {activeTab === 'library' && 'Creators & Niches Library'}
-              {activeTab === 'queue' && 'WoopSocial Queue & Scheduled Releases'}
+              {activeTab === 'queue' && (
+                config?.zernio_api_key && !config?.woopsocial_api_key
+                  ? 'Zernio Queue & Multi-Platform Calendar'
+                  : config?.woopsocial_api_key && !config?.zernio_api_key
+                  ? 'WoopSocial Queue & Scheduled Releases'
+                  : 'Publishing Queue & Multi-Platform Calendar'
+              )}
               {activeTab === 'autopilot' && 'Silent Autopilot Watchdog & Resource Telemetry'}
               {activeTab === 'guide' && 'Official User Manual & Quick Start Guide'}
             </h1>
@@ -317,14 +329,14 @@ export default function Home() {
         {/* View Container */}
         <main className={`flex-1 overflow-y-auto ${activeTab === 'manual' || activeTab === 'exports' ? 'p-0 flex flex-col' : 'p-6'}`}>
           {/* First Run Action Banner */}
-          {(!config?.woopsocial_api_key || !config?.first_run_completed) && (
+          {(!(config?.woopsocial_api_key || config?.zernio_api_key || config?.youtube_oauth_configured || config?.publishing_mode === 'local_only') || !config?.first_run_completed) && (
             <div className="m-6 p-4 rounded-xl bg-amber-950/30 border border-amber-800/40 flex items-center justify-between text-xs font-mono text-amber-300">
               <div className="flex items-center space-x-3">
                 <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
                 <div>
                   <div className="font-bold text-slate-200">First-Run Configuration Required</div>
                   <div className="text-[11px] text-slate-400 mt-0.5">
-                    Connect your WoopSocial API Key and select your target publishing channels to unlock automated clipping and scheduling.
+                    Connect your publishing provider (Zernio, Direct YouTube, or WoopSocial) or select Local Export Mode to unlock automated clipping and scheduling.
                   </div>
                 </div>
               </div>
@@ -341,7 +353,7 @@ export default function Home() {
           {activeTab === 'studio' && <ClipStudioView />}
           {activeTab === 'exports' && <LocalExportsView />}
           {activeTab === 'library' && <LibraryView />}
-          {activeTab === 'queue' && <QueueCalendarView />}
+          {activeTab === 'queue' && <QueueCalendarView onOpenWizard={() => setShowWizard(true)} />}
           {activeTab === 'autopilot' && <AutopilotAnalyticsView />}
           {activeTab === 'guide' && <UserGuideView />}
         </main>

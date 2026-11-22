@@ -7,7 +7,7 @@ import os
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT_DIR / "config.json"
@@ -174,6 +174,59 @@ def is_api_key_configured() -> bool:
     if cfg.get("publishing_mode") == "local_only":
         return True
     return False
+
+
+def get_active_provider(cfg: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Determines the active publishing provider based on config and credentials."""
+    if cfg is None:
+        cfg = get_config()
+
+    mode = cfg.get("publishing_mode", "hybrid")
+    zernio_key = (cfg.get("zernio_api_key") or "").strip()
+    woop_key = (cfg.get("woopsocial_api_key") or "").strip()
+    has_yt_oauth = YOUTUBE_TOKEN_PATH.exists()
+
+    if mode == "zernio" or (mode == "hybrid" and zernio_key and not woop_key):
+        return {
+            "provider": "zernio",
+            "name": "Zernio",
+            "label": "Zernio Queue & Calendar",
+            "is_connected": bool(zernio_key),
+            "mode": mode
+        }
+    elif mode == "woopsocial" or (mode == "hybrid" and woop_key and not zernio_key):
+        return {
+            "provider": "woopsocial",
+            "name": "WoopSocial",
+            "label": "WoopSocial Queue & Calendar",
+            "is_connected": bool(woop_key),
+            "mode": mode
+        }
+    elif mode == "youtube_direct":
+        return {
+            "provider": "youtube_direct",
+            "name": "YouTube Direct v3",
+            "label": "Direct YouTube Uploads & Queue",
+            "is_connected": has_yt_oauth,
+            "mode": mode
+        }
+    elif mode == "local_only":
+        return {
+            "provider": "local_only",
+            "name": "Local Export",
+            "label": "Local Export Queue",
+            "is_connected": True,
+            "mode": mode
+        }
+    else:  # Hybrid mode
+        active = "zernio" if zernio_key else ("woopsocial" if woop_key else "hybrid")
+        return {
+            "provider": active,
+            "name": "Publishing Studio" if active == "hybrid" else ("Zernio" if active == "zernio" else "WoopSocial"),
+            "label": "Publishing Queue & Calendar",
+            "is_connected": bool(zernio_key or woop_key or has_yt_oauth),
+            "mode": mode
+        }
 
 
 def save_config(updates: Dict[str, Any]) -> Dict[str, Any]:

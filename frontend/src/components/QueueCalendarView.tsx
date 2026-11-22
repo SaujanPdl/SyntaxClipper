@@ -13,35 +13,54 @@ import {
   Send,
   Video,
   Layers,
-  Youtube
+  Youtube,
+  KeyRound,
+  Settings
 } from 'lucide-react';
 import {
-  getWoopSocialPosts,
-  retryWoopSocialPost,
-  deleteWoopSocialPost
+  getQueueStatus,
+  getQueuePosts,
+  retryQueuePost,
+  deleteQueuePost
 } from '@/lib/api';
 
-export default function QueueCalendarView() {
+interface QueueCalendarViewProps {
+  onOpenWizard?: () => void;
+}
+
+export default function QueueCalendarView({ onOpenWizard }: QueueCalendarViewProps) {
   const [filter, setFilter] = useState<string>('ALL'); // ALL, SCHEDULED, SENT, FAILED
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [providerInfo, setProviderInfo] = useState<any>({
+    provider: 'zernio',
+    name: 'Zernio',
+    label: 'Zernio Queue & Calendar',
+    is_connected: true
+  });
 
   useEffect(() => {
-    loadPosts();
+    loadProviderAndPosts();
   }, [filter]);
 
-  const loadPosts = async () => {
+  const loadProviderAndPosts = async () => {
     setLoading(true);
     setActionMsg('');
     setErrorMsg('');
     try {
-      const res = await getWoopSocialPosts(filter);
-      setPosts(res.posts || []);
+      const [statusRes, postsRes] = await Promise.all([
+        getQueueStatus().catch(() => null),
+        getQueuePosts(filter)
+      ]);
+      if (statusRes) {
+        setProviderInfo(statusRes);
+      }
+      setPosts(postsRes.posts || []);
     } catch (e: any) {
-      setErrorMsg(e.message || 'Failed to fetch posts from WoopSocial');
+      setErrorMsg(e.message || 'Failed to fetch publishing queue');
     } finally {
       setLoading(false);
     }
@@ -52,9 +71,9 @@ export default function QueueCalendarView() {
     setActionMsg('');
     setErrorMsg('');
     try {
-      await retryWoopSocialPost(postId);
-      setActionMsg(`Post ${postId} retried successfully!`);
-      await loadPosts();
+      await retryQueuePost(postId);
+      setActionMsg(`Post ${postId} retried successfully on ${providerInfo?.name || 'provider'}!`);
+      await loadProviderAndPosts();
     } catch (e: any) {
       setErrorMsg(e.message || 'Retry failed');
     } finally {
@@ -63,26 +82,35 @@ export default function QueueCalendarView() {
   };
 
   const handleDelete = async (postId: string) => {
-    if (!confirm('Are you sure you want to cancel / delete this post from WoopSocial?')) return;
+    if (!confirm(`Are you sure you want to cancel / delete this post from ${providerInfo?.name || 'publishing queue'}?`)) return;
     try {
-      await deleteWoopSocialPost(postId);
+      await deleteQueuePost(postId);
       setActionMsg('Post deleted successfully');
-      await loadPosts();
+      await loadProviderAndPosts();
     } catch (e: any) {
       setErrorMsg(e.message || 'Failed to delete post');
     }
   };
+
+  const providerName = providerInfo?.name || 'Publishing';
+  const providerLabel = providerInfo?.label || 'Publishing Queue & Calendar';
 
   return (
     <div className="space-y-6">
       {/* Top Banner with Filter Tabs */}
       <div className="bg-[#161922] border border-[#262B38] rounded-xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-            WoopSocial Queue & Calendar
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Real-time synchronization with WoopSocial publishing schedule and post deliveries.
+          <div className="flex items-center space-x-2">
+            <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-emerald-400" />
+              {providerLabel}
+            </h2>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#191D26] text-emerald-400 border border-[#262B38]">
+              {providerName}
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Real-time synchronization with {providerName} multi-platform publishing schedule and post deliveries.
           </p>
         </div>
 
@@ -101,8 +129,9 @@ export default function QueueCalendarView() {
             </button>
           ))}
           <button
-            onClick={loadPosts}
-            className="p-1.5 rounded-lg bg-[#0E1015] border border-[#262B38] text-slate-400 hover:text-white"
+            onClick={loadProviderAndPosts}
+            title="Refresh Queue"
+            className="p-1.5 rounded-lg bg-[#0E1015] border border-[#262B38] text-slate-400 hover:text-white transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -117,9 +146,23 @@ export default function QueueCalendarView() {
       )}
 
       {errorMsg && (
-        <div className="p-3 rounded-lg bg-red-950/40 border border-red-800/50 text-red-300 text-xs font-mono flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>{errorMsg}</span>
+        <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs font-mono flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-start space-x-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+            <div>
+              <div className="font-bold text-red-200">Connection or Authorization Notice</div>
+              <div className="text-[11px] text-red-300/80 mt-0.5">{errorMsg}</div>
+            </div>
+          </div>
+          {onOpenWizard && (
+            <button
+              onClick={onOpenWizard}
+              className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-400 text-slate-950 font-semibold text-xs transition-colors shrink-0 flex items-center space-x-1.5"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>Configure Provider</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -128,11 +171,15 @@ export default function QueueCalendarView() {
         {loading ? (
           <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center space-y-2">
             <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
-            <span className="text-xs font-mono">Syncing posts with WoopSocial REST API...</span>
+            <span className="text-xs font-mono">Syncing posts with {providerName} REST API...</span>
           </div>
         ) : posts.length === 0 ? (
-          <div className="py-24 text-center text-slate-500 text-xs font-mono">
-            No posts found matching filter "{filter}".
+          <div className="py-20 text-center text-slate-500 text-xs font-mono flex flex-col items-center justify-center space-y-2">
+            <Calendar className="w-8 h-8 text-slate-600 mb-1" />
+            <span className="text-slate-400 font-medium">No posts found matching filter "{filter}".</span>
+            <span className="text-[11px] text-slate-500">
+              When new clips are scheduled via {providerName}, they will appear here automatically.
+            </span>
           </div>
         ) : (
           <div className="divide-y divide-[#262B38]">
@@ -183,7 +230,7 @@ export default function QueueCalendarView() {
 
                         {/* Platform Badge */}
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0E1015] text-slate-300 border border-[#262B38]">
-                          {p.platform || 'YOUTUBE'}
+                          {p.platform || 'MULTI-PLATFORM'}
                         </span>
 
                         <span className="text-[11px] font-mono text-slate-500">

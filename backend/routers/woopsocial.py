@@ -1,13 +1,18 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from backend.config import get_config, save_config
+from backend.config import get_config, save_config, get_active_provider
 from backend.services.woopsocial_client import (
     verify_connection,
     get_social_account_posts,
     create_or_schedule_post,
     retry_failed_post,
     delete_social_post
+)
+from backend.services.zernio_client import (
+    get_zernio_posts,
+    retry_zernio_post,
+    delete_zernio_post
 )
 
 router = APIRouter(prefix="/api/woopsocial", tags=["woopsocial"])
@@ -46,21 +51,51 @@ def list_accounts():
 
 @router.get("/posts")
 def list_posts(status: Optional[str] = None):
+    """Lists scheduled/published posts, dynamically routing to Zernio when Zernio is active."""
     cfg = get_config()
-    api_key = cfg.get("woopsocial_api_key", "")
+    active_info = get_active_provider(cfg)
+    provider = active_info.get("provider", "hybrid")
+
+    # If Zernio is active, route directly to Zernio REST API
+    if provider == "zernio" or (provider == "hybrid" and cfg.get("zernio_api_key")):
+        zernio_key = cfg.get("zernio_api_key", "").strip()
+        if not zernio_key:
+            return {"posts": [], "provider": "zernio"}
+        try:
+            posts = get_zernio_posts(zernio_key, status_filter=(status or "ALL").upper())
+            return {"posts": posts, "provider": "zernio"}
+        except ValueError as e:
+            if "401" in str(e):
+                raise HTTPException(status_code=401, detail="Zernio API Key is invalid or unauthorized.")
+            return {"posts": [], "provider": "zernio", "error": str(e)}
+        except Exception as e:
+            return {"posts": [], "provider": "zernio", "error": str(e)}
+
+    # Otherwise route to WoopSocial
+    api_key = cfg.get("woopsocial_api_key", "").strip()
     if not api_key:
-        return {"posts": []}
+        return {"posts": [], "provider": "woopsocial"}
     try:
         posts = get_social_account_posts(api_key, status_filter=status)
-        return {"posts": posts}
+        return {"posts": posts, "provider": "woopsocial"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        err_str = str(e)
+        if "401" in err_str:
+            raise HTTPException(status_code=401, detail="WoopSocial API Key is unauthorized.")
+        return {"posts": [], "provider": "woopsocial", "error": err_str}
 
 
 @router.post("/retry/{post_id}")
 def retry_post(post_id: str):
     cfg = get_config()
-    api_key = cfg.get("woopsocial_api_key", "")
+    active_info = get_active_provider(cfg)
+    if active_info.get("provider") == "zernio" or cfg.get("zernio_api_key"):
+        zernio_key = cfg.get("zernio_api_key", "").strip()
+        if not zernio_key:
+            raise HTTPException(status_code=400, detail="Zernio API Key not configured")
+        return retry_zernio_post(zernio_key, post_id)
+
+    api_key = cfg.get("woopsocial_api_key", "").strip()
     if not api_key:
         raise HTTPException(status_code=400, detail="WoopSocial API Key not configured")
     try:
@@ -73,7 +108,14 @@ def retry_post(post_id: str):
 @router.delete("/posts/{post_id}")
 def delete_post(post_id: str):
     cfg = get_config()
-    api_key = cfg.get("woopsocial_api_key", "")
+    active_info = get_active_provider(cfg)
+    if active_info.get("provider") == "zernio" or cfg.get("zernio_api_key"):
+        zernio_key = cfg.get("zernio_api_key", "").strip()
+        if not zernio_key:
+            raise HTTPException(status_code=400, detail="Zernio API Key not configured")
+        return delete_zernio_post(zernio_key, post_id)
+
+    api_key = cfg.get("woopsocial_api_key", "").strip()
     if not api_key:
         raise HTTPException(status_code=400, detail="WoopSocial API Key not configured")
     try:
