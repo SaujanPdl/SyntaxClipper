@@ -120,8 +120,8 @@
       "enabled": true
     }
   ],
-  "round_robin_creator_idx": 4,
-  "round_robin_game_idx": 1,
+  "round_robin_creator_idx": 1,
+  "round_robin_game_idx": 4,
   "daily_creator_counts": {},
   "last_count_reset_date": ""
 }
