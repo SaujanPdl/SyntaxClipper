@@ -55,7 +55,7 @@ export default function UserGuideView() {
         </div>
         <div className="flex items-center space-x-2">
           <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-[#191D26] text-emerald-400 border border-[#242936]">
-            SyntaxClipper v1.0 • by Syntax Nepal
+            SyntaxClipper v1.1 • by Syntax Nepal
           </span>
         </div>
       </div>
