@@ -1,0 +1,31 @@
+{
+  "first_run_completed": false,
+  "publishing_mode": "hybrid",
+  "enabled_providers": ["youtube_direct", "zernio", "woopsocial", "local"],
+  "zernio_api_key": "",
+  "zernio_accounts": [],
+  "woopsocial_api_key": "",
+  "selected_project_id": "",
+  "selected_social_accounts": [],
+  "upload_post_api_key": "",
+  "youtube_api_key": "",
+  "youtube_oauth_configured": false,
+  "youtube_channel_info": null,
+  "youtube_default_privacy": "private",
+  "local_export_enabled": true,
+  "preferences": {
+    "daily_post_limit": 10,
+    "youtube_daily_cap": 10,
+    "tiktok_daily_cap": 10,
+    "reels_daily_cap": 10,
+    "posting_interval_hours": 2,
+    "date_filter_days": 14,
+    "auto_delete_local_clips": true,
+    "round_robin_enabled": true,
+    "game_mode_pause_enabled": true,
+    "default_layout": "fullscreen",
+    "default_hook_style": "transparent",
+    "default_caption_color": "yellow",
+    "target_platforms": ["youtube", "tiktok", "instagram"]
+  }
+}

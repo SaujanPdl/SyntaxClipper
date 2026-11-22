@@ -1,0 +1,127 @@
+{
+  "creators": [
+    {
+      "id": "creator_bbs",
+      "name": "BeastBoyShub",
+      "handle": "@BeastBoyShub",
+      "channel_url": "https://www.youtube.com/@BeastBoyShub",
+      "search_query": "ytsearch10:\"BeastBoyShub GTA 6\"",
+      "facecam_mode": "split",
+      "destination_mode": "woopsocial",
+      "facecam_only": true,
+      "max_clips_per_day": 2,
+      "enabled": true
+    },
+    {
+      "id": "creator_ishowspeed",
+      "name": "IShowSpeed",
+      "handle": "@IShowSpeed",
+      "channel_url": "https://www.youtube.com/@IShowSpeed",
+      "search_query": "ytsearch10:\"IShowSpeed GTA 6\"",
+      "facecam_mode": "split",
+      "destination_mode": "woopsocial",
+      "facecam_only": true,
+      "max_clips_per_day": 2,
+      "enabled": true
+    },
+    {
+      "id": "creator_caseoh",
+      "name": "CaseOh",
+      "handle": "@CaseOh",
+      "channel_url": "https://www.youtube.com/@CaseOh",
+      "search_query": "ytsearch10:\"CaseOh GTA 6\"",
+      "facecam_mode": "split",
+      "destination_mode": "woopsocial",
+      "facecam_only": true,
+      "max_clips_per_day": 2,
+      "enabled": true
+    },
+    {
+      "id": "creator_kaicenat",
+      "name": "Kai Cenat",
+      "handle": "@KaiCenat",
+      "channel_url": "https://www.youtube.com/@KaiCenat",
+      "search_query": "ytsearch10:\"Kai Cenat GTA 6\"",
+      "facecam_mode": "split",
+      "destination_mode": "woopsocial",
+      "facecam_only": true,
+      "max_clips_per_day": 2,
+      "enabled": true
+    },
+    {
+      "id": "creator_jynxzi",
+      "name": "Jynxzi",
+      "handle": "@Jynxzi",
+      "channel_url": "https://www.youtube.com/@Jynxzi",
+      "search_query": "ytsearch10:\"Jynxzi GTA 6\"",
+      "facecam_mode": "split",
+      "destination_mode": "woopsocial",
+      "facecam_only": true,
+      "max_clips_per_day": 2,
+      "enabled": true
+    },
+    {
+      "id": "creator_xqc",
+      "name": "xQc",
+      "handle": "@xQcOW",
+      "channel_url": "https://www.youtube.com/@xQcOW",
+      "search_query": "ytsearch10:\"xQc GTA 6\"",
+      "facecam_mode": "split",
+      "destination_mode": "woopsocial",
+      "facecam_only": true,
+      "max_clips_per_day": 2,
+      "enabled": true
+    }
+  ],
+  "games": [
+    {
+      "id": "game_gta6",
+      "name": "GTA 6",
+      "query": "GTA 6 live stream gameplay facecam",
+      "min_duration_minutes": 30,
+      "upload_date_filter": "last_14_days",
+      "hashtags": "#gta6 #gtavi #gaming #rockstargames #shorts #viral",
+      "enabled": true
+    },
+    {
+      "id": "game_valorant",
+      "name": "Valorant",
+      "query": "Valorant radiant ranked clutch facecam",
+      "min_duration_minutes": 25,
+      "upload_date_filter": "last_14_days",
+      "hashtags": "#valorant #radiant #clutch #gaming #shorts",
+      "enabled": true
+    },
+    {
+      "id": "game_minecraft",
+      "name": "Minecraft",
+      "query": "Minecraft hardcore survival livestream facecam",
+      "min_duration_minutes": 30,
+      "upload_date_filter": "last_30_days",
+      "hashtags": "#minecraft #hardcore #gaming #survival #shorts",
+      "enabled": true
+    },
+    {
+      "id": "game_fortnite",
+      "name": "Fortnite",
+      "query": "Fortnite tournament victory royale facecam",
+      "min_duration_minutes": 20,
+      "upload_date_filter": "last_14_days",
+      "hashtags": "#fortnite #gaming #victoryroyale #shorts",
+      "enabled": true
+    },
+    {
+      "id": "game_cs2",
+      "name": "Counter-Strike 2",
+      "query": "CS2 premier ace clutch live facecam",
+      "min_duration_minutes": 25,
+      "upload_date_filter": "last_14_days",
+      "hashtags": "#cs2 #counterstrike #ace #gaming #shorts",
+      "enabled": true
+    }
+  ],
+  "round_robin_creator_idx": 0,
+  "round_robin_game_idx": 0,
+  "daily_creator_counts": {},
+  "last_count_reset_date": ""
+}
