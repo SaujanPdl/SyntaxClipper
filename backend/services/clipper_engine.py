@@ -810,14 +810,38 @@ def open_local_export_folder(subpath: str = "") -> bool:
     return False
 
 
-def download_vod_segment(url: str, output_path: Path, max_duration: int = 1800) -> Dict[str, Any]:
-    """Downloads a video or live stream segment via yt-dlp."""
+def download_vod_segment(
+    url: str,
+    output_path: Path,
+    max_duration: int = 60,
+    start_sec: Optional[float] = None,
+    end_sec: Optional[float] = None
+) -> Dict[str, Any]:
+    """Downloads only a 30-60 second section of a video or live stream via yt-dlp section-based clipping.
+    Enforces --download-sections, socket timeouts, and a hard 180s subprocess timeout so it never
+    downloads full multi-hour VODs or hangs indefinitely.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     out_template = str(output_path.with_suffix(".%(ext)s"))
 
+    s_sec = max(0, int(start_sec or 0))
+    if end_sec is not None and end_sec > s_sec:
+        e_sec = int(end_sec)
+    else:
+        dur = max(15, min(int(max_duration or 60), 60))
+        e_sec = s_sec + dur
+
+    section_arg = f"*{s_sec}-{e_sec}"
+    yt_bin = get_binary_path_or_name("yt-dlp")
+
     cmd = [
-        "yt-dlp",
+        yt_bin,
         "--no-playlist",
+        "--socket-timeout", "15",
+        "--retries", "3",
+        "--concurrent-fragments", "4",
+        "--download-sections", section_arg,
+        "--force-keyframes-at-cuts",
         "-f", "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]/best",
         "--merge-output-format", "mp4",
         "--output", out_template,
@@ -825,28 +849,73 @@ def download_vod_segment(url: str, output_path: Path, max_duration: int = 1800) 
         url
     ]
 
-    res = subprocess.run(cmd, capture_output=True, text=True, timeout=300, creationflags=SUBPROCESS_FLAGS)
+    try:
+        res = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            creationflags=SUBPROCESS_FLAGS
+        )
+    except subprocess.TimeoutExpired:
+        raise TimeoutError(f"yt-dlp download timed out after 180s for section {section_arg}")
+
     if res.returncode != 0:
-        raise RuntimeError(f"yt-dlp failed: {res.stderr[:300]}")
+        err_msg = res.stderr.strip()[:350]
+        # Attempt fallback: direct stream URL via yt-dlp -g + ffmpeg copy
+        fallback_success = False
+        try:
+            g_cmd = [
+                yt_bin,
+                "--no-playlist",
+                "--socket-timeout", "15",
+                "--retries", "2",
+                "-f", "best[height<=1080]/best",
+                "-g",
+                url
+            ]
+            g_res = subprocess.run(g_cmd, capture_output=True, text=True, timeout=25, creationflags=SUBPROCESS_FLAGS)
+            if g_res.returncode == 0 and g_res.stdout.strip():
+                stream_url = g_res.stdout.strip().splitlines()[0]
+                ff_bin = get_binary_path_or_name("ffmpeg")
+                dur = e_sec - s_sec
+                ff_target = output_path.with_suffix(".mp4")
+                ff_cmd = [
+                    ff_bin, "-y",
+                    "-ss", str(s_sec),
+                    "-i", stream_url,
+                    "-t", str(dur),
+                    "-c", "copy",
+                    str(ff_target)
+                ]
+                ff_res = subprocess.run(ff_cmd, capture_output=True, text=True, timeout=60, creationflags=SUBPROCESS_FLAGS)
+                if ff_res.returncode == 0 and ff_target.exists():
+                    fallback_success = True
+        except Exception:
+            pass
+
+        if not fallback_success:
+            raise RuntimeError(f"yt-dlp failed (code {res.returncode}): {err_msg}")
 
     info = {}
-    for line in res.stdout.splitlines():
-        if line.startswith("{"):
-            try:
-                info = json.loads(line)
-                break
-            except Exception:
-                pass
+    if res.returncode == 0:
+        for line in res.stdout.splitlines():
+            if line.startswith("{"):
+                try:
+                    info = json.loads(line)
+                    break
+                except Exception:
+                    pass
 
     downloaded = list(output_path.parent.glob(f"{output_path.stem}.*"))
     final_file = next((f for f in downloaded if f.suffix in [".mp4", ".mkv", ".webm"]), None)
     if not final_file:
-        raise FileNotFoundError("Downloaded video file not found on disk")
+        raise FileNotFoundError(f"Downloaded section video file not found on disk")
 
     return {
         "file_path": final_file,
-        "title": info.get("title", "Stream VOD"),
+        "title": info.get("title", "Stream Highlight"),
         "uploader": info.get("uploader", "Streamer"),
-        "duration": info.get("duration", 0),
+        "duration": info.get("duration", e_sec - s_sec),
         "id": info.get("id", "")
     }

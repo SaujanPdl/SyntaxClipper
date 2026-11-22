@@ -14,7 +14,8 @@ from backend.autopilot import (
 )
 from backend.pipeline import (
     get_pipeline_progress,
-    execute_autonomous_clip_pipeline
+    execute_autonomous_clip_pipeline,
+    cancel_pipeline_job
 )
 from backend.game_detector import detect_game_and_performance_state
 from backend.config import LOGS_DIR, get_config, save_config
@@ -82,6 +83,13 @@ def run_now():
     )
     t.start()
     return {"success": True, "message": "Autopilot clip pipeline started"}
+
+
+@router.post("/reset")
+@router.post("/cancel")
+def cancel_pipeline():
+    """Cancels any running clipping pipeline job, terminates subprocesses, and resets state."""
+    return cancel_pipeline_job()
 
 
 @router.post("/toggle")

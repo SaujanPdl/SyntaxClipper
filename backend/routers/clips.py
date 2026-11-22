@@ -144,7 +144,9 @@ def _execute_manual_clip_job(job_id: str, req: ManualClipRequest):
             ACTIVE_JOBS[job_id]["progress_log"] = msg
 
         # 1. Download
-        dl_res = download_vod_segment(req.url, temp_dir / "raw_vod.mp4")
+        start_s = float(req.start_sec or 0.0)
+        end_s = start_s + float(req.clip_len or 25.0)
+        dl_res = download_vod_segment(req.url, temp_dir / "raw_vod.mp4", start_sec=start_s, end_sec=end_s)
         raw_file = dl_res["file_path"]
         streamer = req.streamer_name or dl_res.get("uploader", "Streamer")
 

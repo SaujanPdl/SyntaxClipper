@@ -146,6 +146,25 @@ def reset_pipeline_progress(detail: str = "Ready — Next check in 15 min") -> N
     )
 
 
+def cancel_pipeline_job() -> Dict[str, Any]:
+    """Cancels any running clipping pipeline job, terminates subprocesses, and resets state."""
+    logger.info("Pipeline cancel requested by user.")
+    if LOCK_FILE.exists():
+        try:
+            LOCK_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    if sys.platform == "win32":
+        import subprocess
+        flags = subprocess.CREATE_NO_WINDOW
+        subprocess.run(["taskkill", "/F", "/IM", "yt-dlp.exe"], capture_output=True, creationflags=flags)
+        subprocess.run(["taskkill", "/F", "/IM", "ffmpeg.exe"], capture_output=True, creationflags=flags)
+
+    reset_pipeline_progress("Pipeline job cancelled — Ready")
+    return {"success": True, "message": "Pipeline cancelled successfully"}
+
+
 def execute_autonomous_clip_pipeline(
     target_creator: Optional[Dict[str, Any]] = None,
     manual: bool = False
@@ -224,25 +243,35 @@ def execute_autonomous_clip_pipeline(
                 active=True
             )
         else:
-            # Stage 2: Download
+            # Stage 2: Download highlight section (0-45s)
             set_pipeline_progress(
                 stage="DOWNLOADING",
                 percent=25,
-                detail=f"Downloading 1080p stream segment from {creator_name}...",
+                detail=f"Downloading 1080p stream highlight section (0-45s) from {creator_name}...",
                 creator=creator_name,
                 active=True
             )
 
-            # In testing/local environment, if yt-dlp fails to download remote stream, create a valid vertical clip
             try:
-                dl_res = download_vod_segment(target_url, raw_video)
+                dl_res = download_vod_segment(target_url, raw_video, start_sec=0.0, end_sec=45.0)
                 downloaded_file = dl_res.get("file_path", raw_video)
                 clip_title = dl_res.get("title", f"{creator_name} Stream Highlights")
             except Exception as dl_err:
-                logger.warning(f"Stream download failed: {dl_err}. Creating demo highlight segment for test.")
-                clip_title = f"{creator_name} Epic Moment"
-                # If download fails, check exports or fallback
-                downloaded_file = None
+                err_detail = str(dl_err)
+                logger.error(f"Stream highlight download failed: {err_detail}")
+                # Reset pipeline from Running (25%) to Failed so UI never stays stuck
+                set_pipeline_progress(
+                    stage="FAILED",
+                    percent=0,
+                    detail=f"Download failed: {err_detail[:140]}",
+                    creator=creator_name,
+                    active=False
+                )
+                return {
+                    "success": False,
+                    "error": err_detail,
+                    "stage": "DOWNLOADING"
+                }
 
             # Stage 3: 45% - Transcribing audio & syncing captions
             set_pipeline_progress(
