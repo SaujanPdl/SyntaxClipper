@@ -117,13 +117,13 @@ export default function LocalExportsView() {
         scheduled_for_iso: scheduleIso || null
       });
 
-      setPublishSuccess('Clip sent to WoopSocial successfully!');
+      setPublishSuccess('Clip scheduled to publishing queue successfully!');
       setTimeout(() => {
         setShowPublishModal(false);
         setPublishSuccess('');
       }, 2000);
     } catch (e: any) {
-      setPublishError(e.message || 'Failed to send clip to WoopSocial');
+      setPublishError(e.message || 'Failed to dispatch clip');
     } finally {
       setPublishing(false);
     }
@@ -288,7 +288,7 @@ export default function LocalExportsView() {
                   className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-semibold text-xs transition-colors shadow-sm"
                 >
                   <Share2 className="w-3.5 h-3.5" />
-                  <span>Send to WoopSocial</span>
+                  <span>Dispatch to Social Queue</span>
                 </button>
               </div>
             </div>
@@ -460,7 +460,7 @@ export default function LocalExportsView() {
             <div className="flex items-center justify-between border-b border-[#242936] pb-3">
               <div className="flex items-center space-x-2">
                 <Share2 className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white">Send Local Clip to WoopSocial</h3>
+                <h3 className="text-sm font-bold text-white">Dispatch Local Clip to Social Channels</h3>
               </div>
               <button
                 onClick={() => setShowPublishModal(false)}

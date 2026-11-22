@@ -35,6 +35,7 @@ export default function LibraryView() {
   const [activeTab, setActiveTab] = useState<'creators' | 'games'>('creators');
   const [creators, setCreators] = useState<any[]>([]);
   const [games, setGames] = useState<any[]>([]);
+  const [config, setConfig] = useState<any>(null);
   const [roundRobin, setRoundRobin] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -46,7 +47,7 @@ export default function LibraryView() {
   const [creatorUrl, setCreatorUrl] = useState<string>('');
   const [creatorQuery, setCreatorQuery] = useState<string>('');
   const [creatorFacecamMode, setCreatorFacecamMode] = useState<string>('auto'); // auto, split, fullscreen
-  const [creatorDestinationMode, setCreatorDestinationMode] = useState<string>('woopsocial'); // woopsocial, local_only
+  const [creatorDestinationMode, setCreatorDestinationMode] = useState<string>('auto'); // auto, local_only
   const [creatorMaxClips, setCreatorMaxClips] = useState<number>(2);
 
   // Game Modal
@@ -68,6 +69,7 @@ export default function LibraryView() {
       const [cRes, gRes, cfg] = await Promise.all([getCreators(), getGames(), getConfig()]);
       setCreators(cRes.creators || []);
       setGames(gRes.games || []);
+      setConfig(cfg);
       setRoundRobin(cfg.preferences?.round_robin_enabled ?? true);
     } catch (e) {
       console.error(e);
@@ -86,6 +88,51 @@ export default function LibraryView() {
     }
   };
 
+  // Dynamic destination badge resolver
+  const getDestinationBadge = (destMode?: string) => {
+    if (destMode === 'local_only' || destMode === 'local') {
+      return {
+        label: 'Local Exports Only',
+        className: 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+      };
+    }
+    const mode = config?.publishing_mode || 'hybrid';
+    if (mode === 'hybrid') {
+      return {
+        label: 'Hybrid (YT Direct + Zernio)',
+        className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+      };
+    }
+    if (mode === 'zernio') {
+      return {
+        label: 'Zernio Cloud',
+        className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+      };
+    }
+    if (mode === 'youtube_direct') {
+      return {
+        label: 'YouTube Direct',
+        className: 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+      };
+    }
+    if (mode === 'woopsocial') {
+      return {
+        label: 'WoopSocial Cloud',
+        className: 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+      };
+    }
+    if (mode === 'local_only') {
+      return {
+        label: 'Local Exports Only',
+        className: 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+      };
+    }
+    return {
+      label: 'Cloud Queue (Auto)',
+      className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+    };
+  };
+
   // Creator Actions
   const handleOpenAddCreator = () => {
     setCreatorEditingId(null);
@@ -94,7 +141,7 @@ export default function LibraryView() {
     setCreatorUrl('');
     setCreatorQuery('');
     setCreatorFacecamMode('auto');
-    setCreatorDestinationMode('woopsocial');
+    setCreatorDestinationMode('auto');
     setCreatorMaxClips(2);
     setShowCreatorModal(true);
   };
@@ -118,7 +165,7 @@ export default function LibraryView() {
     setCreatorUrl(c.channel_url || '');
     setCreatorQuery(c.search_query || '');
     setCreatorFacecamMode(c.facecam_mode || (c.facecam_only ? 'split' : 'auto'));
-    setCreatorDestinationMode(c.destination_mode || 'woopsocial');
+    setCreatorDestinationMode(c.destination_mode === 'local_only' ? 'local_only' : 'auto');
     setCreatorMaxClips(c.max_clips_per_day ?? 2);
     setShowCreatorModal(true);
   };
@@ -384,15 +431,14 @@ export default function LibraryView() {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span
-                          className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
-                            dest === 'local_only'
-                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                              : 'bg-slate-800 text-slate-300 border-slate-700'
-                          }`}
-                        >
-                          {dest === 'local_only' ? 'Local Only' : 'WoopSocial Cloud'}
-                        </span>
+                        {(() => {
+                          const badge = getDestinationBadge(dest);
+                          return (
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${badge.className}`}>
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-300">
                         {c.max_clips_per_day || 2} / day
@@ -552,7 +598,9 @@ export default function LibraryView() {
                   onChange={(e) => setCreatorDestinationMode(e.target.value)}
                   className="w-full mt-1 px-3 py-1.5 bg-[#0B0D11] border border-[#242936] rounded text-slate-200 font-mono focus:border-emerald-500 focus:outline-none"
                 >
-                  <option value="woopsocial">WoopSocial Auto-Schedule (Cloud Queue)</option>
+                  <option value="auto">
+                    Auto-Publish via Active Provider ({getDestinationBadge('auto').label})
+                  </option>
                   <option value="local_only">Save Locally Only (exports/local/ — Do Not Post)</option>
                 </select>
               </div>

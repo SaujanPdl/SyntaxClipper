@@ -43,7 +43,7 @@ class ManualClipRequest(BaseModel):
     custom_cam_box: Optional[List[float]] = None # [cx, cy, cw, ch]
     hook_style: Optional[str] = "transparent"   # "transparent" or "card"
     caption_color: Optional[str] = "yellow"     # "yellow", "green", "cyan", "pink", "white"
-    destination_mode: Optional[str] = "woopsocial" # "woopsocial" or "local_only"
+    destination_mode: Optional[str] = "auto" # "auto" or "local_only"
 
 
 class InspectUrlRequest(BaseModel):
@@ -169,7 +169,7 @@ def _execute_manual_clip_job(job_id: str, req: ManualClipRequest):
             custom_cam_box=cam_box,
             hook_style=req.hook_style or "transparent",
             caption_color=req.caption_color or "yellow",
-            destination_mode=req.destination_mode or "woopsocial",
+            destination_mode=req.destination_mode or "auto",
             progress_callback=update_log
         )
 

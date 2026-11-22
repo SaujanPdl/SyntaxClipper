@@ -403,12 +403,12 @@ def render_916_clip(
     custom_cam_box: Optional[Tuple[float, float, float, float]] = None,
     hook_style: str = "transparent",   # "transparent" or "card"
     caption_color: str = "yellow",
-    destination_mode: str = "woopsocial",  # "woopsocial" or "local_only"
+    destination_mode: str = "auto",  # "auto" or "local_only"
     progress_callback: Optional[Callable[[str], None]] = None
 ) -> Dict[str, Any]:
     """Renders a production-grade 9:16 vertical clip supporting:
     - 3-Way Facecam Mode: Auto-Detect, Force Split 42/58, and No-Facecam Full-Screen 9:16.
-    - Destination Mode Routing: WoopSocial vs. Local-Only Export.
+    - Destination Mode Routing: Auto (Active Cloud Provider) vs. Local-Only Export.
     """
     dest_clip.parent.mkdir(parents=True, exist_ok=True)
     if progress_callback:

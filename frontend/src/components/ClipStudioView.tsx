@@ -162,7 +162,7 @@ export default function ClipStudioView() {
 
       setActionSuccess(
         publishImmediately
-          ? 'Clip published to WoopSocial immediately!'
+          ? 'Clip published to publishing queue immediately!'
           : `Clip scheduled successfully for ${new Date(scheduledIso!).toLocaleString()}`
       );
       await loadClips();
@@ -540,7 +540,7 @@ export default function ClipStudioView() {
                     className="py-2 px-3 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs flex items-center justify-center space-x-1.5 transition-colors disabled:opacity-50"
                   >
                     <Calendar className="w-3.5 h-3.5" />
-                    <span>Schedule to WoopSocial</span>
+                    <span>Schedule Release</span>
                   </button>
                   <button
                     onClick={() => handleScheduleDirect(true)}

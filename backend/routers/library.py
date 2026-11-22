@@ -24,7 +24,7 @@ class CreatorModel(BaseModel):
     channel_url: Optional[str] = ""
     search_query: Optional[str] = ""
     facecam_mode: Optional[str] = "auto"       # "auto", "split", "fullscreen"
-    destination_mode: Optional[str] = "woopsocial" # "woopsocial", "local_only"
+    destination_mode: Optional[str] = "auto" # "auto", "local_only"
     facecam_only: Optional[bool] = True
     max_clips_per_day: Optional[int] = 2
     enabled: Optional[bool] = True

@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'SyntaxClipper by Syntax Nepal - Autonomous Video Clipper',
-  description: 'Production-grade local video clipping and WoopSocial publishing application.',
+  description: 'Production-grade local video clipping and multi-platform publishing application.',
 };
 
 export default function RootLayout({

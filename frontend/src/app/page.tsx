@@ -212,9 +212,15 @@ export default function Home() {
             >
               <Calendar className="w-4 h-4" />
               <span>
-                {config?.zernio_api_key && !config?.woopsocial_api_key
+                {config?.publishing_mode === 'hybrid'
+                  ? 'Hybrid Pro Queue'
+                  : config?.publishing_mode === 'zernio'
                   ? 'Zernio Queue'
-                  : config?.woopsocial_api_key && !config?.zernio_api_key
+                  : config?.publishing_mode === 'youtube_direct'
+                  ? 'YouTube Studio Queue'
+                  : config?.publishing_mode === 'local_only'
+                  ? 'Local Queue'
+                  : config?.woopsocial_api_key
                   ? 'WoopSocial Queue'
                   : 'Publishing Queue'}
               </span>
@@ -323,10 +329,14 @@ export default function Home() {
               {activeTab === 'exports' && 'Local Video Exports & Social Dispatch'}
               {activeTab === 'library' && 'Creators & Niches Library'}
               {activeTab === 'queue' && (
-                config?.zernio_api_key && !config?.woopsocial_api_key
-                  ? 'Zernio Queue & Multi-Platform Calendar'
-                  : config?.woopsocial_api_key && !config?.zernio_api_key
-                  ? 'WoopSocial Queue & Scheduled Releases'
+                config?.publishing_mode === 'hybrid'
+                  ? 'Hybrid Pro Queue & Calendar (YouTube Direct + Zernio)'
+                  : config?.publishing_mode === 'zernio'
+                  ? 'Zernio Multi-Platform Queue & Calendar'
+                  : config?.publishing_mode === 'youtube_direct'
+                  ? 'Direct YouTube Studio Queue & Calendar'
+                  : config?.publishing_mode === 'local_only'
+                  ? 'Local Video Queue & Exports'
                   : 'Publishing Queue & Multi-Platform Calendar'
               )}
               {activeTab === 'autopilot' && 'Silent Autopilot Watchdog & Resource Telemetry'}

@@ -17,7 +17,7 @@ DEFAULT_CREATORS = [
         "channel_url": "https://www.youtube.com/@BeastBoyShub",
         "search_query": 'ytsearch10:"BeastBoyShub GTA 6"',
         "facecam_mode": "split",  # "auto", "split", "fullscreen"
-        "destination_mode": "woopsocial",  # "woopsocial", "local_only"
+        "destination_mode": "auto",  # "auto", "local_only"
         "facecam_only": True,
         "max_clips_per_day": 2,
         "enabled": True,
@@ -29,7 +29,7 @@ DEFAULT_CREATORS = [
         "channel_url": "https://www.youtube.com/@IShowSpeed",
         "search_query": 'ytsearch10:"IShowSpeed GTA 6"',
         "facecam_mode": "split",
-        "destination_mode": "woopsocial",
+        "destination_mode": "auto",
         "facecam_only": True,
         "max_clips_per_day": 2,
         "enabled": True,
@@ -41,7 +41,7 @@ DEFAULT_CREATORS = [
         "channel_url": "https://www.youtube.com/@CaseOh",
         "search_query": 'ytsearch10:"CaseOh GTA 6"',
         "facecam_mode": "split",
-        "destination_mode": "woopsocial",
+        "destination_mode": "auto",
         "facecam_only": True,
         "max_clips_per_day": 2,
         "enabled": True,
@@ -53,7 +53,7 @@ DEFAULT_CREATORS = [
         "channel_url": "https://www.youtube.com/@KaiCenat",
         "search_query": 'ytsearch10:"Kai Cenat GTA 6"',
         "facecam_mode": "split",
-        "destination_mode": "woopsocial",
+        "destination_mode": "auto",
         "facecam_only": True,
         "max_clips_per_day": 2,
         "enabled": True,
@@ -65,7 +65,7 @@ DEFAULT_CREATORS = [
         "channel_url": "https://www.youtube.com/@Jynxzi",
         "search_query": 'ytsearch10:"Jynxzi GTA 6"',
         "facecam_mode": "split",
-        "destination_mode": "woopsocial",
+        "destination_mode": "auto",
         "facecam_only": True,
         "max_clips_per_day": 2,
         "enabled": True,
@@ -77,7 +77,7 @@ DEFAULT_CREATORS = [
         "channel_url": "https://www.youtube.com/@xQcOW",
         "search_query": 'ytsearch10:"xQc GTA 6"',
         "facecam_mode": "split",
-        "destination_mode": "woopsocial",
+        "destination_mode": "auto",
         "facecam_only": True,
         "max_clips_per_day": 2,
         "enabled": True,
@@ -146,8 +146,8 @@ def load_db() -> Dict[str, Any]:
                         if "facecam_mode" not in c:
                             c["facecam_mode"] = "split" if c.get("facecam_only", True) else "auto"
                             updated = True
-                        if "destination_mode" not in c:
-                            c["destination_mode"] = "woopsocial"
+                        if "destination_mode" not in c or c["destination_mode"] == "woopsocial":
+                            c["destination_mode"] = "auto"
                             updated = True
                     if updated:
                         save_db(data)
